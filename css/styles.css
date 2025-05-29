@@ -1,0 +1,531 @@
+/* Estilos generales */
+body {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    border: none;
+    margin-bottom: 20px;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+}
+
+.card-header {
+    border-radius: 12px 12px 0 0 !important;
+    font-weight: 600;
+    color: #ffffff;
+    padding: 16px 20px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+/* Estilos para la tabla */
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    color: #e0e0e0;
+    margin-left: 20px; /* Espacio para las etiquetas de hidrante */
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    width: calc(100% - 20px);
+    table-layout: fixed;
+}
+
+.table th {
+    background-color: #2a2a2a;
+    color: white;
+    padding: 12px 15px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 2px solid #444;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.table thead th::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(84, 160, 255, 0.5), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.5s ease;
+}
+
+.table:hover thead th::after {
+    transform: translateX(0);
+}
+
+.table td {
+    padding: 12px 15px;
+    border-top: 1px solid rgba(80, 80, 80, 0.2);
+    transition: all 0.3s;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(79, 79, 79, 0.3);
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: rgba(40, 40, 40, 0.4);
+}
+
+/* Agrega animación y estilo moderno */
+.table tbody tr {
+    transition: all 0.3s ease;
+    height: 60px;
+}
+
+/* Bordes redondeados para primera y última fila */
+.table tbody tr:first-child td:first-child {
+    border-top-left-radius: 8px;
+}
+
+.table tbody tr:first-child td:last-child {
+    border-top-right-radius: 8px;
+}
+
+.table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: 8px;
+}
+
+.table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 8px;
+}
+
+/* Colores para hidrantes - Filas completas y estilo mejorado */
+
+/* Grupo H1 - Azul */
+.fila-h1 {
+    background-color: rgba(52, 152, 219, 0.2) !important;
+    border-left: 6px solid #3498db;
+    position: relative;
+}
+.fila-h1 td:first-child {
+    font-weight: bold;
+    color: #3498db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h1::before {
+    content: 'H1';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #3498db;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H2 - Verde */
+.fila-h2 {
+    background-color: rgba(46, 204, 113, 0.2) !important;
+    border-left: 6px solid #2ecc71;
+    position: relative;
+}
+.fila-h2 td:first-child {
+    font-weight: bold;
+    color: #2ecc71;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h2::before {
+    content: 'H2';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #2ecc71;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H3 - Rojo */
+.fila-h3 {
+    background-color: rgba(231, 76, 60, 0.2) !important;
+    border-left: 6px solid #e74c3c;
+    position: relative;
+}
+.fila-h3 td:first-child {
+    font-weight: bold;
+    color: #e74c3c;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h3::before {
+    content: 'H3';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #e74c3c;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H4 - Amarillo */
+.fila-h4 {
+    background-color: rgba(241, 196, 15, 0.2) !important;
+    border-left: 6px solid #f1c40f;
+    position: relative;
+}
+.fila-h4 td:first-child {
+    font-weight: bold;
+    color: #f1c40f;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h4::before {
+    content: 'H4';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #f1c40f;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H5 - Morado */
+.fila-h5 {
+    background-color: rgba(155, 89, 182, 0.2) !important;
+    border-left: 6px solid #9b59b6;
+    position: relative;
+}
+.fila-h5 td:first-child {
+    font-weight: bold;
+    color: #9b59b6;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h5::before {
+    content: 'H5';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9b59b6;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H6 - Turquesa */
+.fila-h6 {
+    background-color: rgba(26, 188, 156, 0.2) !important;
+    border-left: 6px solid #1abc9c;
+    position: relative;
+}
+.fila-h6 td:first-child {
+    font-weight: bold;
+    color: #1abc9c;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h6::before {
+    content: 'H6';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #1abc9c;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H7 - Naranja */
+.fila-h7 {
+    background-color: rgba(230, 126, 34, 0.2) !important;
+    border-left: 6px solid #e67e22;
+    position: relative;
+}
+.fila-h7 td:first-child {
+    font-weight: bold;
+    color: #e67e22;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h7::before {
+    content: 'H7';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #e67e22;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H8 - Cyan */
+.fila-h8 {
+    background-color: rgba(0, 188, 212, 0.2) !important;
+    border-left: 6px solid #00bcd4;
+    position: relative;
+}
+.fila-h8 td:first-child {
+    font-weight: bold;
+    color: #00bcd4;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h8::before {
+    content: 'H8';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #00bcd4;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H9 - Naranja oscuro */
+.fila-h9 {
+    background-color: rgba(255, 87, 34, 0.2) !important;
+    border-left: 6px solid #ff5722;
+    position: relative;
+}
+.fila-h9 td:first-child {
+    font-weight: bold;
+    color: #ff5722;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h9::before {
+    content: 'H9';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ff5722;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Grupo H10 - Verde claro */
+.fila-h10 {
+    background-color: rgba(76, 175, 80, 0.2) !important;
+    border-left: 6px solid #4caf50;
+    position: relative;
+}
+.fila-h10 td:first-child {
+    font-weight: bold;
+    color: #4caf50;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.fila-h10::before {
+    content: 'H10';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #4caf50;
+    font-weight: bold;
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* Separación entre grupos de hidrantes */
+.grupo-separacion {
+    height: 15px;
+    background-color: #1e1e1e;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.grupo-separacion::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+/* Colores para hidrantes - Texto */
+.hidrante-h1 {
+    color: #3498db; /* Azul */
+    font-weight: bold;
+}
+
+.hidrante-h2 {
+    color: #2ecc71; /* Verde */
+    font-weight: bold;
+}
+
+.hidrante-h3 {
+    color: #e74c3c; /* Rojo */
+    font-weight: bold;
+}
+
+.hidrante-h4 {
+    color: #f1c40f; /* Amarillo */
+    font-weight: bold;
+}
+
+.hidrante-h5 {
+    color: #9b59b6; /* Morado */
+    font-weight: bold;
+}
+
+.hidrante-h6 {
+    color: #1abc9c; /* Turquesa */
+    font-weight: bold;
+}
+
+.hidrante-h7 {
+    color: #e67e22; /* Naranja */
+    font-weight: bold;
+}
+
+.hidrante-h8 {
+    color: #00bcd4; /* Cyan */
+    font-weight: bold;
+}
+
+.hidrante-h9 {
+    color: #ff5722; /* Naranja oscuro */
+    font-weight: bold;
+}
+
+.hidrante-h10 {
+    color: #4caf50; /* Verde claro */
+    font-weight: bold;
+}
+
+/* Efecto hover para filas con color */
+.table-hover tbody tr.fila-h1:hover,
+.table-hover tbody tr.fila-h2:hover,
+.table-hover tbody tr.fila-h3:hover,
+.table-hover tbody tr.fila-h4:hover,
+.table-hover tbody tr.fila-h5:hover,
+.table-hover tbody tr.fila-h6:hover,
+.table-hover tbody tr.fila-h7:hover,
+.table-hover tbody tr.fila-h8:hover,
+.table-hover tbody tr.fila-h9:hover,
+.table-hover tbody tr.fila-h10:hover {
+    background-color: rgba(79, 79, 79, 0.2) !important;
+}
+
+/* Estilos para inputs de lectura */
+.lectura-input {
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 6px 8px;
+    transition: all 0.3s ease;
+    text-align: center;
+    font-weight: bold;
+    width: 100%;
+    max-width: 120px;
+    margin: 0 auto;
+    display: block;
+}
+
+.lectura-input:focus {
+    border-color: #54a0ff;
+    box-shadow: 0 0 0 3px rgba(84, 160, 255, 0.25);
+    outline: none;
+}
+
+/* Animaciones */
+.btn {
+    transition: all 0.3s;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table {
+        font-size: 0.9rem;
+    }
+}
+
+/* Estilos para el total y lecturas */
+#totalConsumo {
+    font-size: 1.1rem;
+    color: #54a0ff;
+}
+
+.lectura-anterior {
+    font-weight: bold !important;
+    color: #54a0ff !important;
+    font-size: 1.05rem;
+}
+
+/* Estilo para la columna de número */
+.num-row {
+    background-color: rgba(25, 25, 25, 0.8);
+    font-weight: bold;
+    color: #adadad;
+    font-size: 0.8rem;
+    border-right: 1px solid rgba(80, 80, 80, 0.3);
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+}
+
+/* Estilos para PDF preview */
+#pdfPreview {
+    width: 100%;
+    border: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    overflow: auto;
+}

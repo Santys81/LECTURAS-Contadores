@@ -1,0 +1,9 @@
+ID,Ubicacion,Descripcion,Lectura_Anterior
+1,Edificio A - Planta 1,Contador de agua,2354.50
+2,Edificio A - Planta 2,Contador de luz,4532.80
+3,Edificio B - Entrada,Contador de gas,1876.25
+4,Edificio B - Sótano,Contador principal agua,9865.10
+5,Nave Industrial,Contador eléctrico trifásico,12543.75
+6,Oficinas Centrales,Contador general,5421.35
+7,Pabellón Deportivo,Contador agua piscina,3254.20
+8,Jardines,Contador riego automático,1245.65
