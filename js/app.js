@@ -114,22 +114,133 @@ function inicializarMapa() {
     // Crear el mapa centrado en España (coordenadas aproximadas)
     mapaHidrantes = L.map('mapContainer').setView([40.4168, -3.7038], 6);
     
-    // Añadir capa de OpenStreetMap
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Añadir capa de OpenStreetMap como capa base
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19
     }).addTo(mapaHidrantes);
     
     // Añadir capa de satélite de ESRI
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
         maxZoom: 19
-    }).addTo(mapaHidrantes);
+    });
+    
+    // Añadir control de capas al mapa
+    const baseLayers = {
+        "OpenStreetMap": osmLayer,
+        "Satélite": satelliteLayer
+    };
+    
+    L.control.layers(baseLayers, null, { position: 'topright' }).addTo(mapaHidrantes);
+    
+    // Modo de edición (por defecto desactivado)
+    let modoEdicion = false;
+    let hidrateSeleccionadoParaEdicion = null;
+    
+    // Añadir botón de edición al mapa
+    const botonEdicion = L.control({ position: 'topleft' });
+    botonEdicion.onAdd = function() {
+        const div = L.DomUtil.create('div', 'info leaflet-control-edicion');
+        div.innerHTML = `
+            <button id="toggleEdicionBtn" class="btn btn-sm btn-secondary">
+                <i class="fas fa-map-marker-alt"></i> Modo Ubicación
+            </button>
+        `;
+        return div;
+    };
+    botonEdicion.addTo(mapaHidrantes);
+    
+    // Añadir información de instrucciones
+    const infoControl = L.control({ position: 'bottomleft' });
+    infoControl.onAdd = function() {
+        const div = L.DomUtil.create('div', 'info bg-dark text-light p-2');
+        div.style.borderRadius = '5px';
+        div.style.padding = '8px';
+        div.style.display = 'none';
+        div.id = 'instruccionesEdicion';
+        div.innerHTML = `
+            <strong>Modo Ubicación Activado</strong><br>
+            1. Seleccione un hidrante del desplegable<br>
+            2. Haga clic en el mapa para posicionarlo<br>
+            3. O arrastre un marcador existente para reubicarlo
+        `;
+        return div;
+    };
+    infoControl.addTo(mapaHidrantes);
+    
+    // Evento de clic en el mapa para ubicar hidrantes
+    mapaHidrantes.on('click', function(e) {
+        if (modoEdicion && hidrateSeleccionadoParaEdicion) {
+            const contador = contadores.find(c => c.id == hidrateSeleccionadoParaEdicion);
+            if (contador) {
+                // Actualizar coordenadas
+                contador.latitud = e.latlng.lat;
+                contador.longitud = e.latlng.lng;
+                
+                // Refrescar marcadores
+                actualizarMarcadoresHidrantes();
+                
+                // Actualizar panel de información
+                mostrarCoordenadasHidrante(contador);
+                
+                // Guardar cambios
+                guardarDatosLocalmente();
+                
+                // Mostrar mensaje
+                mostrarNotificacion(`Hidrante ${contador.hidrante} ubicado correctamente`);
+            }
+        }
+    });
+    
+    // Configurar el botón de modo edición después de añadirlo al DOM
+    setTimeout(() => {
+        const toggleBtn = document.getElementById('toggleEdicionBtn');
+        const instrucciones = document.getElementById('instruccionesEdicion');
+        
+        if (toggleBtn && instrucciones) {
+            toggleBtn.addEventListener('click', function() {
+                modoEdicion = !modoEdicion;
+                
+                // Actualizar apariencia del botón
+                if (modoEdicion) {
+                    toggleBtn.classList.remove('btn-secondary');
+                    toggleBtn.classList.add('btn-danger');
+                    toggleBtn.innerHTML = '<i class="fas fa-times"></i> Finalizar Ubicación';
+                    instrucciones.style.display = 'block';
+                } else {
+                    toggleBtn.classList.remove('btn-danger');
+                    toggleBtn.classList.add('btn-secondary');
+                    toggleBtn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Modo Ubicación';
+                    instrucciones.style.display = 'none';
+                    hidrateSeleccionadoParaEdicion = null;
+                }
+                
+                // Notificar al usuario
+                if (modoEdicion) {
+                    mostrarNotificacion('Modo de ubicación activado. Seleccione un hidrante y haga clic en el mapa.');
+                } else {
+                    mostrarNotificacion('Modo de ubicación desactivado. Cambios guardados.');
+                }
+            });
+        }
+    }, 500);
     
     // Inicializar con datos existentes si hay
     if (contadores.length > 0) {
         actualizarMarcadoresHidrantes();
     }
+    
+    // Función para actualizar hidrante seleccionado para edición
+    window.seleccionarHidranteParaEdicion = function(hidranteId) {
+        hidrateSeleccionadoParaEdicion = hidranteId;
+        if (modoEdicion) {
+            const contador = contadores.find(c => c.id == hidranteId);
+            if (contador) {
+                mostrarNotificacion(`Hidrante ${contador.hidrante} seleccionado. Haga clic en el mapa para ubicarlo.`);
+            }
+        }
+    };
 }
 
 // Actualizar los marcadores de hidrantes en el mapa
@@ -188,10 +299,39 @@ function actualizarMarcadoresHidrantes() {
                 iconAnchor: [12, 12]
             });
             
-            // Crear marcador
-            const marcador = L.marker(latLng, { icon: icono })
-                .addTo(mapaHidrantes)
-                .bindPopup(`
+            // Crear marcador con opción de arrastrar
+            const marcador = L.marker(latLng, { 
+                icon: icono,
+                draggable: true  // Permitir arrastrar el marcador
+            })
+            .addTo(mapaHidrantes)
+            .bindPopup(`
+                <div style="text-align: center;">
+                    <h6>${contador.hidrante}</h6>
+                    <p><strong>ID:</strong> ${contador.id}</p>
+                    <p><strong>Última Lectura:</strong> ${Math.floor(contador.lecturaAnterior)}</p>
+                    <p><strong>Coordenadas:</strong><br>
+                    Lat: ${contador.latitud.toFixed(6)}<br>
+                    Lng: ${contador.longitud.toFixed(6)}<br>
+                    Alt: ${contador.altitud || 'N/A'} m</p>
+                    <button class="btn btn-sm btn-primary ubicar-hidrante-btn" 
+                            data-hidrante-id="${contador.id}">
+                        Editar ubicación
+                    </button>
+                </div>
+            `);
+            
+            // Evento cuando se arrastra y suelta el marcador
+            marcador.on('dragend', function(event) {
+                const marcador = event.target;
+                const posicion = marcador.getLatLng();
+                
+                // Actualizar coordenadas del contador
+                contador.latitud = posicion.lat;
+                contador.longitud = posicion.lng;
+                
+                // Actualizar el popup con las nuevas coordenadas
+                marcador.setPopupContent(`
                     <div style="text-align: center;">
                         <h6>${contador.hidrante}</h6>
                         <p><strong>ID:</strong> ${contador.id}</p>
@@ -200,8 +340,37 @@ function actualizarMarcadoresHidrantes() {
                         Lat: ${contador.latitud.toFixed(6)}<br>
                         Lng: ${contador.longitud.toFixed(6)}<br>
                         Alt: ${contador.altitud || 'N/A'} m</p>
+                        <button class="btn btn-sm btn-primary ubicar-hidrante-btn" 
+                                data-hidrante-id="${contador.id}">
+                            Editar ubicación
+                        </button>
                     </div>
                 `);
+                
+                // Actualizar panel de información si es el hidrante seleccionado
+                if (hidranteSelect.value === contador.id) {
+                    mostrarCoordenadasHidrante(contador);
+                }
+                
+                // Guardar cambios
+                guardarDatosLocalmente();
+                
+                // Mostrar mensaje
+                mostrarNotificacion(`Hidrante ${contador.hidrante} reposicionado correctamente`);
+            });
+            
+            // Evento para los botones dentro del popup
+            marcador.on('popupopen', function() {
+                setTimeout(() => {
+                    const botones = document.querySelectorAll('.ubicar-hidrante-btn');
+                    botones.forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const hidranteId = this.getAttribute('data-hidrante-id');
+                            window.seleccionarHidranteParaEdicion(hidranteId);
+                        });
+                    });
+                }, 100);
+            });
             
             // Guardar referencia al marcador
             marcadoresHidrantes[contador.id] = marcador;
@@ -223,29 +392,105 @@ function actualizarMarcadoresHidrantes() {
     }
 }
 
+// Mostrar coordenadas de un hidrante en el panel de información
+function mostrarCoordenadasHidrante(contador) {
+    if (contador && contador.latitud && contador.longitud) {
+        hidranteLatitud.textContent = contador.latitud.toFixed(6);
+        hidranteLongitud.textContent = contador.longitud.toFixed(6);
+        hidranteAltitud.textContent = contador.altitud ? `${contador.altitud} m` : 'N/A';
+    } else {
+        hidranteLatitud.textContent = 'N/A';
+        hidranteLongitud.textContent = 'N/A';
+        hidranteAltitud.textContent = 'N/A';
+    }
+}
+
+// Guardar datos localmente
+function guardarDatosLocalmente() {
+    localStorage.setItem('contadores', JSON.stringify(contadores));
+    mostrarNotificacion('Datos guardados correctamente');
+}
+
+// Mostrar notificación
+function mostrarNotificacion(mensaje, tipo = 'info') {
+    // Comprobar si el contenedor de notificaciones existe
+    let notificacionesContainer = document.getElementById('notificacionesContainer');
+    if (!notificacionesContainer) {
+        // Crear el contenedor si no existe
+        notificacionesContainer = document.createElement('div');
+        notificacionesContainer.id = 'notificacionesContainer';
+        notificacionesContainer.style.position = 'fixed';
+        notificacionesContainer.style.bottom = '20px';
+        notificacionesContainer.style.right = '20px';
+        notificacionesContainer.style.zIndex = '9999';
+        document.body.appendChild(notificacionesContainer);
+    }
+    
+    // Crear la notificación
+    const notificacion = document.createElement('div');
+    notificacion.className = `alert alert-${tipo} alert-dismissible fade show`;
+    notificacion.style.marginTop = '10px';
+    notificacion.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+    notificacion.style.maxWidth = '300px';
+    
+    notificacion.innerHTML = `
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Añadir la notificación al contenedor
+    notificacionesContainer.appendChild(notificacion);
+    
+    // Eliminar automáticamente después de 5 segundos
+    setTimeout(() => {
+        notificacion.classList.remove('show');
+        setTimeout(() => {
+            if (notificacion.parentNode) {
+                notificacionesContainer.removeChild(notificacion);
+            }
+        }, 300);
+    }, 5000);
+}
+
 // Seleccionar un hidrante en el mapa
 function seleccionarHidranteEnMapa(hidranteId) {
     // Resetear la información mostrada
-    hidranteLatitud.textContent = '-';
-    hidranteLongitud.textContent = '-';
-    hidranteAltitud.textContent = '-';
+    hidranteLatitud.textContent = 'N/A';
+    hidranteLongitud.textContent = 'N/A';
+    hidranteAltitud.textContent = 'N/A';
     
     if (!hidranteId) return;
     
-    // Buscar el contador correspondiente
-    const contador = contadores.find(c => c.id === hidranteId);
+    // Buscar el contador seleccionado
+    const contador = contadores.find(c => c.id == hidranteId);
     if (!contador) return;
     
-    // Actualizar la información de coordenadas
-    if (contador.latitud) hidranteLatitud.textContent = contador.latitud.toFixed(6);
-    if (contador.longitud) hidranteLongitud.textContent = contador.longitud.toFixed(6);
-    if (contador.altitud) hidranteAltitud.textContent = `${contador.altitud} m`;
+    // Actualizar el hidrante seleccionado para edición si estamos en modo edición
+    if (document.getElementById('toggleEdicionBtn')?.classList.contains('btn-danger')) {
+        window.seleccionarHidranteParaEdicion(hidranteId);
+    }
     
-    // Enfocar el mapa en el marcador seleccionado
-    const marcador = marcadoresHidrantes[hidranteId];
-    if (marcador) {
-        mapaHidrantes.setView(marcador.getLatLng(), 18);
-        marcador.openPopup();
+    // Mostrar las coordenadas del hidrante seleccionado
+    if (contador.latitud && contador.longitud) {
+        mostrarCoordenadasHidrante(contador);
+        
+        // Buscar el marcador correspondiente
+        const marcador = marcadoresHidrantes[hidranteId];
+        if (marcador) {
+            // Centrar el mapa en el marcador
+            mapaHidrantes.setView(marcador.getLatLng(), 18);
+            // Abrir el popup
+            marcador.openPopup();
+        }
+    } else {
+        // Si el hidrante no tiene coordenadas y estamos en modo edición
+        if (document.getElementById('toggleEdicionBtn')?.classList.contains('btn-danger')) {
+            mostrarNotificacion(`Seleccione un punto en el mapa para ubicar el hidrante ${contador.hidrante}`, 'warning');
+            // Hacer zoom al centro del mapa
+            mapaHidrantes.setView([40.4168, -3.7038], 6);
+        } else {
+            mostrarNotificacion(`El hidrante ${contador.hidrante} no tiene coordenadas definidas. Active el modo ubicación para asignarlas.`, 'warning');
+        }
     }
 }
 
