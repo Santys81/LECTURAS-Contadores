@@ -260,28 +260,7 @@ function importarExcel() {
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            
-            // Obtener la primera hoja
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            
-            // Convertir a JSON
-            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-            
-            if (jsonData.length === 0) {
-                alert('El archivo no contiene datos.');
-                return;
-            }
-            
-            // Procesar datos
-            procesarDatosExcel(jsonData);
-            
-            // Habilitar botones
-            saveBtn.disabled = false;
-            exportPdfBtn.disabled = false;
-            exportExcelBtn.disabled = false;
-            
+            procesarExcel(e.target.result);
         } catch (error) {
             console.error('Error al procesar el archivo:', error);
             alert('Error al procesar el archivo. Verifica que sea un archivo Excel válido.');
@@ -291,60 +270,191 @@ function importarExcel() {
     reader.readAsArrayBuffer(file);
 }
 
-// Procesar los datos importados del Excel
-function procesarDatosExcel(jsonData) {
-    // Resetear array de contadores
-    contadores = [];
-    
-    // Mapear datos del Excel a nuestro formato
-    jsonData.forEach((row, index) => {
-        // Intentar identificar las columnas del Excel específico de CCRR LIAR Y CARBONIEL
-        const id = row.ID || row.Id || row.id || row.TOMA || row.Toma || row.toma || row.NUM || row.Num || row.num || index + 1;
-        const hidrante = row.HIDRANTE || row.Hidrante || row.hidrante || row.SECTOR || row.Sector || row.sector || '';
+// Procesar datos Excel
+function procesarExcel(buffer) {
+    try {
+        // Leer el archivo Excel
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
         
-        let lecturaAnterior = 0;
+        // Convertir a JSON
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
-        // Si encontramos la columna específica, la usamos
-        if (row['Última Lectura']) {
-            lecturaAnterior = parseFloat(row['Última Lectura'] || 0);
-        } else {
-            // Buscar específicamente si existe alguna propiedad con nombre que contenga "ultima lectura"
-            let encontrada = false;
-            for (const key in row) {
-                if (key.toLowerCase().includes('ultima lectura') || key.toLowerCase().includes('última lectura')) {
-                    lecturaAnterior = parseFloat(row[key] || 0);
-                    encontrada = true;
-                    break;
+        // Verificar que hay datos
+        if (data.length < 2) {
+            throw new Error('El archivo no contiene suficientes datos.');
+        }
+        
+        // Buscar índices de columnas necesarias
+        const headers = data[0].map(h => String(h).toLowerCase());
+        const idIdx = headers.findIndex(h => h.includes('id') || h.includes('toma'));
+        const hidranteIdx = headers.findIndex(h => h.includes('hidrante') || h.includes('contador'));
+        
+        // Detectar columna de última lectura (puede tener varios nombres)
+        let lecturaAnteriorIdx = headers.findIndex(h => 
+            h.includes('ultima lectura') || 
+            h.includes('última lectura') || 
+            h.includes('lectura anterior') ||
+            h.includes('lectura_anterior')
+        );
+        
+        // Si no se encontró la columna, buscar alternativas
+        if (lecturaAnteriorIdx === -1) {
+            lecturaAnteriorIdx = headers.findIndex(h => 
+                h.includes('lectura') || 
+                h.includes('medida') || 
+                h.includes('consumo anterior')
+            );
+        }
+        
+        // Buscar coordenadas si existen
+        const latitudIdx = headers.findIndex(h => h.includes('latitud') || h.includes('lat'));
+        const longitudIdx = headers.findIndex(h => h.includes('longitud') || h.includes('long') || h.includes('lng'));
+        const altitudIdx = headers.findIndex(h => h.includes('altitud') || h.includes('alt') || h.includes('elevacion'));
+        
+        // Verificar que se encontraron las columnas necesarias
+        if (idIdx === -1 || hidranteIdx === -1 || lecturaAnteriorIdx === -1) {
+            throw new Error('No se encontraron todas las columnas necesarias en el archivo.');
+        }
+        
+        // Almacenar grupos de hidrantes para generar coordenadas inteligentes
+        const gruposHidrantes = {};
+        const coordenadasGeneradas = {};
+        
+        // Primera pasada: identificar grupos de hidrantes
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (row.length <= Math.max(idIdx, hidranteIdx)) continue;
+            
+            const hidrante = row[hidranteIdx] ? String(row[hidranteIdx]) : '';
+            if (!hidrante) continue;
+            
+            // Detectar el grupo del hidrante (H01, H02, etc.)
+            let grupoHidrante = 'otros';
+            
+            // Intentar capturar patrones como CR-LIAR_H01-001
+            const matchComplejo = hidrante.match(/H0?(\d+)-/i);
+            if (matchComplejo && matchComplejo[1]) {
+                grupoHidrante = `H${parseInt(matchComplejo[1])}`;
+            } else {
+                // Intentar formato simple H1, H2
+                const matchSimple = hidrante.match(/H0?(\d+)/i);
+                if (matchSimple && matchSimple[1]) {
+                    grupoHidrante = `H${parseInt(matchSimple[1])}`;
                 }
             }
             
-            // Si todavía no la encontramos, buscar en las columnas alternativas
-            if (!encontrada) {
-                lecturaAnterior = parseFloat(
-                    row.Lectura_Anterior || row['Lectura Anterior'] || row.LECTURA_ANTERIOR || 
-                    row['ÚLTIMA LECTURA'] || row['Última Lectura'] || row['última lectura'] || 
-                    row.CONTADOR || row.Contador || row.contador || 0
-                );
+            if (!gruposHidrantes[grupoHidrante]) {
+                gruposHidrantes[grupoHidrante] = [];
             }
+            gruposHidrantes[grupoHidrante].push(hidrante);
         }
         
-        // Crear objeto contador
-        const contador = {
-            id,
-            hidrante,
-            lecturaAnterior,
-            lecturaActual: lecturaAnterior, // Por defecto igual a la anterior
-            consumo: 0
-        };
+        // Generar coordenadas base para cada grupo
+        const gruposCoordenadas = {};
+        const grupos = Object.keys(gruposHidrantes).sort();
         
-        contadores.push(contador);
-    });
-    
-    // Renderizar tabla
-    renderizarTablaContadores();
-    
-    // Actualizar el mapa con los nuevos hidrantes
-    actualizarMarcadoresHidrantes();
+        // Ubicación central (puedes cambiarla por una ubicación real si lo deseas)
+        const centroCoordenadas = { lat: 37.8883, lng: -4.7794 }; // Córdoba, España
+        
+        // Distribuir grupos en un círculo alrededor del centro
+        grupos.forEach((grupo, index) => {
+            const radio = 0.05; // ~5km
+            const angulo = (index / grupos.length) * Math.PI * 2;
+            
+            // Posición relativa al centro para este grupo
+            gruposCoordenadas[grupo] = {
+                lat: centroCoordenadas.lat + Math.sin(angulo) * radio,
+                lng: centroCoordenadas.lng + Math.cos(angulo) * radio
+            };
+        });
+        
+        // Procesar los datos
+        contadores = [];
+        for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (row.length <= Math.max(idIdx, hidranteIdx, lecturaAnteriorIdx)) continue;
+            
+            const id = row[idIdx] ? String(row[idIdx]) : `ID-${i}`;
+            const hidrante = row[hidranteIdx] ? String(row[hidranteIdx]) : '';
+            const lecturaAnterior = parseFloat(row[lecturaAnteriorIdx]) || 0;
+            
+            // Crear objeto base del contador
+            const contador = {
+                id,
+                hidrante,
+                lecturaAnterior,
+                lecturaActual: lecturaAnterior,
+                consumo: 0,
+                incidencia: '',
+                estado: 'pendiente'
+            };
+            
+            // Añadir coordenadas existentes o generarlas inteligentemente
+            if (latitudIdx !== -1 && row[latitudIdx]) {
+                contador.latitud = parseFloat(row[latitudIdx]);
+                contador.longitud = longitudIdx !== -1 && row[longitudIdx] ? 
+                    parseFloat(row[longitudIdx]) : centroCoordenadas.lng;
+                contador.altitud = altitudIdx !== -1 && row[altitudIdx] ? 
+                    parseFloat(row[altitudIdx]) : Math.floor(100 + Math.random() * 50);
+            } else {
+                // Determinar grupo de hidrante para coordenadas
+                let grupoHidrante = 'otros';
+                const matchComplejo = hidrante.match(/H0?(\d+)-/i);
+                if (matchComplejo && matchComplejo[1]) {
+                    grupoHidrante = `H${parseInt(matchComplejo[1])}`;
+                } else {
+                    const matchSimple = hidrante.match(/H0?(\d+)/i);
+                    if (matchSimple && matchSimple[1]) {
+                        grupoHidrante = `H${parseInt(matchSimple[1])}`;
+                    }
+                }
+                
+                // Usar coordenadas del grupo con pequeña variación para cada hidrante
+                if (gruposCoordenadas[grupoHidrante]) {
+                    // Obtenemos un índice del hidrante dentro del grupo
+                    const hidranteIndex = gruposHidrantes[grupoHidrante].indexOf(hidrante);
+                    const total = gruposHidrantes[grupoHidrante].length;
+                    
+                    // Distribuimos los hidrantes en un pequeño círculo alrededor de la coordenada del grupo
+                    const miniRadio = 0.005; // ~500m
+                    const miniAngulo = (hidranteIndex / (total || 1)) * Math.PI * 2;
+                    
+                    contador.latitud = gruposCoordenadas[grupoHidrante].lat + 
+                        Math.sin(miniAngulo) * miniRadio * (Math.random() * 0.5 + 0.5);
+                    contador.longitud = gruposCoordenadas[grupoHidrante].lng + 
+                        Math.cos(miniAngulo) * miniRadio * (Math.random() * 0.5 + 0.5);
+                    contador.altitud = Math.floor(100 + Math.random() * 50);
+                } else {
+                    // Si no hay grupo, usar el centro con pequeña variación
+                    contador.latitud = centroCoordenadas.lat + (Math.random() - 0.5) * 0.01;
+                    contador.longitud = centroCoordenadas.lng + (Math.random() - 0.5) * 0.01;
+                    contador.altitud = Math.floor(100 + Math.random() * 50);
+                }
+            }
+            
+            contadores.push(contador);
+        }
+        
+        // Guardar datos en localStorage
+        localStorage.setItem('contadores', JSON.stringify(contadores));
+        
+        // Renderizar tabla
+        renderizarTablaContadores();
+        
+        // Actualizar el mapa con los nuevos hidrantes
+        actualizarMarcadoresHidrantes();
+        
+        // Habilitar botones
+        habilitarBotones();
+        
+        return true;
+    } catch (error) {
+        console.error('Error al procesar el archivo Excel:', error);
+        alert(`Error al procesar el archivo: ${error.message}`);
+        return false;
+    }
 }
 
 // Renderizar tabla de contadores
