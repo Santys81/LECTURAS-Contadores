@@ -1,15 +1,13 @@
 // Variables globales
 let contadores = [];
 let historialLecturas = [];
-
-// Elementos DOM
+let excelData = null;
 const excelFileInput = document.getElementById('excelFile');
 const importBtn = document.getElementById('importBtn');
 const saveBtn = document.getElementById('saveBtn');
 const exportPdfBtn = document.getElementById('exportPdfBtn');
 const exportExcelBtn = document.getElementById('exportExcelBtn');
 const contadoresBody = document.getElementById('contadoresBody');
-const historialBody = document.getElementById('historialBody');
 const totalConsumoElement = document.getElementById('totalConsumo');
 const periodoLecturaInput = document.getElementById('periodoLectura');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
@@ -26,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cargar datos guardados en localStorage
     cargarDatosGuardados();
     
-    // Event listeners
+    // Eventos después de cargar la página
     importBtn.addEventListener('click', importarExcel);
     saveBtn.addEventListener('click', guardarLecturas);
     exportPdfBtn.addEventListener('click', mostrarPrevisualizacionPDF);
@@ -45,12 +43,47 @@ document.addEventListener('DOMContentLoaded', () => {
             // Actualizar datos y cálculos
             contadores[index].lecturaActual = parseFloat(lecturaActualInput.value) || 0;
             contadores[index].consumo = Math.max(0, contadores[index].lecturaActual - contadores[index].lecturaAnterior);
-            consumoCell.textContent = contadores[index].consumo.toFixed(2);
+            consumoCell.textContent = Math.floor(contadores[index].consumo);
             
             // Recalcular total
             calcularTotalConsumo();
         }
+        
+        // Capturar cambios en las incidencias
+        if (e.target.classList.contains('incidencia-input')) {
+            const row = e.target.closest('tr');
+            const index = row.dataset.index;
+            
+            // Actualizar incidencia en el array de contadores
+            contadores[index].incidencia = e.target.value;
+        }
     });
+    
+    // Evento para los botones de estado
+    contadoresBody.addEventListener('click', (e) => {
+        const btnEstado = e.target.closest('.btn-estado');
+        if (btnEstado) {
+            const row = btnEstado.closest('tr');
+            const index = row.dataset.index;
+            const nuevoEstado = btnEstado.dataset.estado;
+            
+            // Actualizar estado en el array de contadores
+            contadores[index].estado = nuevoEstado;
+            
+            // Actualizar visualización de los botones
+            const botonesEstado = row.querySelectorAll('.btn-estado');
+            botonesEstado.forEach(btn => {
+                if (btn.dataset.estado === 'ok') {
+                    btn.className = nuevoEstado === 'ok' ? 'btn btn-success btn-estado' : 'btn btn-outline-success btn-estado';
+                } else if (btn.dataset.estado === 'nook') {
+                    btn.className = nuevoEstado === 'nook' ? 'btn btn-danger btn-estado' : 'btn btn-outline-danger btn-estado';
+                }
+            });
+        }
+    });
+    
+    // Intentar cargar el historial guardado
+    cargarHistorial();
 });
 
 // Función para importar datos desde Excel
@@ -273,7 +306,7 @@ function renderizarTablaContadores() {
         if (grupoIndex > 0) {
             const separador = document.createElement('tr');
             separador.className = 'grupo-separacion';
-            separador.innerHTML = '<td colspan="5"></td>';
+            separador.innerHTML = '<td colspan="7"></td>';
             contadoresBody.appendChild(separador);
         }
         
@@ -282,7 +315,7 @@ function renderizarTablaContadores() {
             const grupoHeader = document.createElement('tr');
             grupoHeader.className = `grupo-header fila-${grupoHidrante.toLowerCase()}`;
             grupoHeader.innerHTML = `
-                <td colspan="5" class="text-center">Hidrante ${grupoHidrante}</td>
+                <td colspan="7" class="text-center">Hidrante ${grupoHidrante}</td>
             `;
             // Descomentar si quieres mostrar un encabezado por grupo
             // contadoresBody.appendChild(grupoHeader);
@@ -328,6 +361,10 @@ function renderizarTablaContadores() {
             const lecturaActual = Math.floor(contador.lecturaActual || lecturaAnterior);
             const consumo = Math.floor(contador.consumo || 0);
             
+            // Estado predeterminado: no verificado
+            if (!contador.incidencia) contador.incidencia = '';
+            if (!contador.estado) contador.estado = 'pendiente';
+            
             row.innerHTML = `
                 <td class="num-row text-center">${contadores.indexOf(contador) + 1}</td>
                 <td class="${hidranteClass}">${hidrante}</td>
@@ -337,6 +374,20 @@ function renderizarTablaContadores() {
                         value="${lecturaActual}" step="1" min="${lecturaAnterior}">
                 </td>
                 <td class="consumo">${consumo}</td>
+                <td>
+                    <input type="text" class="form-control form-control-sm incidencia-input" 
+                        placeholder="Anotar incidencia..." value="${contador.incidencia || ''}">
+                </td>
+                <td class="estado-col text-center">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn ${contador.estado === 'ok' ? 'btn-success' : 'btn-outline-success'} btn-estado" data-estado="ok" title="OK">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </button>
+                        <button type="button" class="btn ${contador.estado === 'nook' ? 'btn-danger' : 'btn-outline-danger'} btn-estado" data-estado="nook" title="NO OK">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                    </div>
+                </td>
             `;
             
             contadoresBody.appendChild(row);
@@ -515,162 +566,108 @@ function generarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    // Título
+    // Configurar documento
     doc.setFontSize(18);
-    doc.text('Informe de Lecturas de Contadores CCRR LIAR Y CARBONIEL', 14, 20);
-    
-    // Información del periodo
-    const [año, mes] = periodoLecturaInput.value.split('-');
-    const nombresMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    const periodoFormateado = `${nombresMeses[parseInt(mes) - 1]} ${año}`;
+    doc.text('Informe de Lecturas de Contadores', 14, 20);
     
     doc.setFontSize(12);
-    doc.text(`Periodo: ${periodoFormateado}`, 14, 30);
+    doc.text(`Periodo: ${periodoSeleccionado}`, 14, 30);
     doc.text(`Fecha de generación: ${new Date().toLocaleDateString()}`, 14, 37);
     
-    // Tabla de contadores
-    const tableColumn = ["TOMA", "HIDRANTE", "Última Lectura", "Lectura Actual", "m³ Consumidos"];
-    const tableRows = [];
+    // Preparar tabla
+    const headers = [[
+        '#', 
+        'HIDRANTE', 
+        'Última Lectura', 
+        'Lectura Actual', 
+        'm³ Consumidos',
+        'Incidencias',
+        'Estado'
+    ]];
     
-    contadores.forEach(contador => {
-        const contadorData = [
-            contador.id,
-            contador.hidrante,
-            Math.floor(contador.lecturaAnterior),
-            Math.floor(contador.lecturaActual),
-            Math.floor(contador.consumo)
-        ];
-        tableRows.push(contadorData);
-    });
-    
-    // Agregar fila de total
-    const totalConsumo = calcularTotalConsumo();
-    tableRows.push([
-        "",
-        "",
-        "",
-        "TOTAL:",
-        Math.floor(totalConsumo)
+    const data = contadores.map((contador, index) => [
+        index + 1, 
+        contador.hidrante, 
+        Math.floor(contador.lecturaAnterior),
+        Math.floor(contador.lecturaActual),
+        Math.floor(contador.consumo),
+        contador.incidencia || '',
+        contador.estado === 'ok' ? 'OK' : contador.estado === 'nook' ? 'NO OK' : 'Pendiente'
     ]);
     
+    // Añadir total
+    const totalConsumo = contadores.reduce((total, contador) => total + contador.consumo, 0);
+    data.push(['', '', '', 'Total m³:', Math.floor(totalConsumo), '', '']);
+    
+    // Generar tabla
     doc.autoTable({
-        head: [tableColumn],
-        body: tableRows,
+        head: headers,
+        body: data,
         startY: 45,
         theme: 'grid',
-        styles: {
-            fontSize: 10,
-            cellPadding: 3,
-            lineWidth: 0.1,
-            lineColor: [80, 80, 80]
-        },
-        headStyles: {
-            fillColor: [41, 128, 185],
-            textColor: 255,
-            fontStyle: 'bold'
-        },
-        footStyles: {
-            fillColor: [189, 195, 199],
-            textColor: [0, 0, 0],
-            fontStyle: 'bold'
-        },
-        alternateRowStyles: {
-            fillColor: [242, 242, 242]
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+        footStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        columnStyles: {
+            0: { cellWidth: 10 },  // # (estrecha)
+            5: { cellWidth: 40 },  // Incidencias (más ancha)
+            6: { cellWidth: 20 }   // Estado
         }
     });
+    
+    // Generar PDF
+    const pdfOutput = doc.output('datauristring');
+    const pdfPreview = document.getElementById('pdfPreview');
+    pdfPreview.innerHTML = `<iframe width="100%" height="100%" src="${pdfOutput}"></iframe>`;
+    
+    // Mostrar modal
+    const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
+    pdfModal.show();
     
     return doc;
 }
 
-// Mostrar previsualización del PDF
-function mostrarPrevisualizacionPDF() {
-    const doc = generarPDF();
-    
-    // Abrir modal
-    const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
-    pdfModal.show();
-    
-    // Mostrar PDF en el modal
-    const pdfPreview = document.getElementById('pdfPreview');
-    pdfPreview.innerHTML = '';
-    
-    // Obtener datos del PDF y mostrar en iframe
-    const pdfData = doc.output('datauristring');
-    const iframe = document.createElement('iframe');
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.src = pdfData;
-    pdfPreview.appendChild(iframe);
-}
-
-// Descargar PDF
-function descargarPDF() {
-    const doc = generarPDF();
-    
-    // Generar nombre de archivo con el periodo
-    const periodo = periodoLecturaInput.value;
-    const nombreArchivo = `Lecturas_Contadores_${periodo}.pdf`;
-    
-    doc.save(nombreArchivo);
-}
-
 // Exportar a Excel
 function exportarExcel() {
-    // Verificar que hay datos para exportar
     if (contadores.length === 0) {
         alert('No hay datos para exportar.');
         return;
     }
     
-    // Crear una hoja de cálculo
+    const periodoExcel = periodoLecturaInput.value || 'Sin periodo';
+    
+    // Crear un nuevo libro de trabajo
     const wb = XLSX.utils.book_new();
     
-    // Preparar los datos para Excel
-    const datosExcel = [
-        // Encabezados
-        ['TOMA', 'HIDRANTE', 'ÚLTIMA LECTURA', 'LECTURA ACTUAL', 'M³ CONSUMIDOS']
-    ];
+    // Datos para la hoja de cálculo
+    const headers = ['#', 'HIDRANTE', 'Última Lectura', 'Lectura Actual', 'm³ Consumidos', 'Incidencias', 'Estado'];
     
-    // Añadir los datos de los contadores
-    contadores.forEach(contador => {
-        datosExcel.push([
-            contador.id,
-            contador.hidrante,
-            Math.floor(contador.lecturaAnterior),
-            Math.floor(contador.lecturaActual),
-            Math.floor(contador.consumo)
-        ]);
-    });
-    
-    // Añadir fila de total
-    const totalConsumo = calcularTotalConsumo();
-    datosExcel.push([
-        '',
-        '',
-        '',
-        'TOTAL:',
-        Math.floor(totalConsumo)
+    const data = contadores.map((contador, index) => [
+        index + 1, 
+        contador.hidrante, 
+        Math.floor(contador.lecturaAnterior),
+        Math.floor(contador.lecturaActual),
+        Math.floor(contador.consumo),
+        contador.incidencia || '',
+        contador.estado === 'ok' ? 'OK' : contador.estado === 'nook' ? 'NO OK' : 'Pendiente'
     ]);
     
-    // Crear la hoja
-    const ws = XLSX.utils.aoa_to_sheet(datosExcel);
+    // Añadir una fila con el total
+    const totalConsumo = contadores.reduce((total, contador) => total + contador.consumo, 0);
+    data.push(['', '', '', 'Total m³:', Math.floor(totalConsumo), '', '']);
     
-    // Añadir estilos (ancho de columnas)
-    const wscols = [
-        {wch: 10},  // TOMA
-        {wch: 15},  // HIDRANTE
-        {wch: 15},  // ÚLTIMA LECTURA
-        {wch: 15},  // LECTURA ACTUAL
-        {wch: 15},  // M³ CONSUMIDOS
-    ];
-    ws['!cols'] = wscols;
+    // Combinar headers con datos
+    const wsData = [headers, ...data];
+    
+    // Crear hoja de cálculo
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
     
     // Añadir la hoja al libro
     XLSX.utils.book_append_sheet(wb, ws, 'Lecturas');
     
     // Generar nombre de archivo con el periodo
-    const periodo = periodoLecturaInput.value;
-    const nombreArchivo = `Lecturas_Contadores_${periodo}.xlsx`;
+    const nombreArchivo = `Lecturas_Contadores_${periodoExcel.replace(/[\/:*?"<>|]/g, '_')}.xlsx`;
     
     // Exportar el archivo
     XLSX.writeFile(wb, nombreArchivo);
