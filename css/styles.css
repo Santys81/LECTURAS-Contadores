@@ -522,6 +522,48 @@ body {
     max-width: 40px;
 }
 
+/* Estilos para columna de incidencias */
+.incidencia-input {
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 6px 8px;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+.incidencia-input:focus {
+    border-color: #ffa502;
+    box-shadow: 0 0 0 3px rgba(255, 165, 2, 0.25);
+    outline: none;
+}
+
+/* Estilos para columna de estado */
+.estado-col {
+    width: 80px;
+    min-width: 80px;
+}
+
+.btn-estado {
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-estado:hover {
+    transform: scale(1.05);
+}
+
+.btn-estado i {
+    font-size: 1rem;
+}
+
 /* Estilos para PDF preview */
 #pdfPreview {
     width: 100%;
