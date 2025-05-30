@@ -769,6 +769,152 @@ function cargarDatosGuardados() {
     }
 }
 
+// Mostrar previsualización del PDF
+function mostrarPrevisualizacionPDF() {
+    const periodo = periodoLecturaInput.value || 'Actual';
+    
+    // Crear PDF con jsPDF
+    const pdf = new jspdf.jsPDF();
+    
+    // Añadir título y fecha
+    pdf.setFontSize(18);
+    pdf.text('Informe de Lecturas de Contadores', 105, 15, { align: 'center' });
+    pdf.setFontSize(12);
+    pdf.text(`Periodo: ${periodo}`, 105, 25, { align: 'center' });
+    pdf.text(`Fecha: ${new Date().toLocaleDateString()}`, 105, 32, { align: 'center' });
+    
+    // Configuración de la tabla
+    const head = [['#', 'HIDRANTE', 'ÚLTIMA LECTURA', 'LECTURA ACTUAL', 'M³ CONSUMIDOS', 'INCIDENCIAS', 'ESTADO']];
+    
+    // Datos de la tabla
+    const data = contadores.map((contador, idx) => {
+        return [
+            idx + 1,
+            contador.hidrante || '',
+            Math.floor(contador.lecturaAnterior) || 0,
+            Math.floor(contador.lecturaActual) || 0,
+            Math.floor(contador.consumo) || 0,
+            contador.incidencia || '',
+            contador.estado || 'Pendiente'
+        ];
+    });
+    
+    // Añadir tabla al PDF
+    pdf.autoTable({
+        head: head,
+        body: data,
+        startY: 40,
+        theme: 'striped',
+        styles: { 
+            fontSize: 8, 
+            cellPadding: 2 
+        },
+        columnStyles: {
+            0: { cellWidth: 15 }, // #
+            1: { cellWidth: 40 }, // HIDRANTE
+            2: { cellWidth: 30 }, // ÚLTIMA LECTURA
+            3: { cellWidth: 30 }, // LECTURA ACTUAL
+            4: { cellWidth: 30 }, // M³ CONSUMIDOS
+            5: { cellWidth: 30 }, // INCIDENCIAS
+            6: { cellWidth: 20 }  // ESTADO
+        }
+    });
+    
+    // Calcular consumo total
+    let totalConsumo = 0;
+    contadores.forEach(contador => {
+        totalConsumo += Math.floor(contador.consumo) || 0;
+    });
+    
+    // Añadir total de consumo
+    const finalY = pdf.previousAutoTable.finalY || 150;
+    pdf.text(`Total M³ Consumidos: ${totalConsumo}`, 195, finalY + 10, { align: 'right' });
+    
+    // Obtener como URL de datos
+    const pdfBlob = pdf.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    
+    // Mostrar previsualización en el contenedor
+    const pdfPreview = document.getElementById('pdfPreview');
+    if (pdfPreview) {
+        pdfPreview.innerHTML = `<iframe src="${pdfUrl}" width="100%" height="500" style="border: none;"></iframe>`;
+        pdfPreview.style.display = 'block';
+    } else {
+        alert('No se encontró el contenedor para la previsualización del PDF');
+    }
+    
+    // Mostrar botón de descarga
+    downloadPdfBtn.style.display = 'block';
+}
+
+// Generar PDF para descargar
+function descargarPDF() {
+    const periodo = periodoLecturaInput.value || 'Actual';
+    
+    // Crear PDF con jsPDF
+    const pdf = new jspdf.jsPDF();
+    
+    // Añadir título y fecha
+    pdf.setFontSize(18);
+    pdf.text('Informe de Lecturas de Contadores', 105, 15, { align: 'center' });
+    pdf.setFontSize(12);
+    pdf.text(`Periodo: ${periodo}`, 105, 25, { align: 'center' });
+    pdf.text(`Fecha: ${new Date().toLocaleDateString()}`, 105, 32, { align: 'center' });
+    
+    // Configuración de la tabla
+    const head = [['#', 'HIDRANTE', 'ÚLTIMA LECTURA', 'LECTURA ACTUAL', 'M³ CONSUMIDOS', 'INCIDENCIAS', 'ESTADO']];
+    
+    // Datos de la tabla
+    const data = contadores.map((contador, idx) => {
+        return [
+            idx + 1,
+            contador.hidrante || '',
+            Math.floor(contador.lecturaAnterior) || 0,
+            Math.floor(contador.lecturaActual) || 0,
+            Math.floor(contador.consumo) || 0,
+            contador.incidencia || '',
+            contador.estado || 'Pendiente'
+        ];
+    });
+    
+    // Añadir tabla al PDF
+    pdf.autoTable({
+        head: head,
+        body: data,
+        startY: 40,
+        theme: 'striped',
+        styles: { 
+            fontSize: 8, 
+            cellPadding: 2 
+        },
+        columnStyles: {
+            0: { cellWidth: 15 }, // #
+            1: { cellWidth: 40 }, // HIDRANTE
+            2: { cellWidth: 30 }, // ÚLTIMA LECTURA
+            3: { cellWidth: 30 }, // LECTURA ACTUAL
+            4: { cellWidth: 30 }, // M³ CONSUMIDOS
+            5: { cellWidth: 30 }, // INCIDENCIAS
+            6: { cellWidth: 20 }  // ESTADO
+        }
+    });
+    
+    // Calcular consumo total
+    let totalConsumo = 0;
+    contadores.forEach(contador => {
+        totalConsumo += Math.floor(contador.consumo) || 0;
+    });
+    
+    // Añadir total de consumo
+    const finalY = pdf.previousAutoTable.finalY || 150;
+    pdf.text(`Total M³ Consumidos: ${totalConsumo}`, 195, finalY + 10, { align: 'right' });
+    
+    // Generar nombre de archivo con el periodo
+    const nombreArchivo = `Lecturas_Contadores_${periodo.replace(/[\/:*?"<>|]/g, '_')}.pdf`;
+    
+    // Descargar el archivo
+    pdf.save(nombreArchivo);
+}
+
 // Generar PDF
 function generarPDF() {
     const { jsPDF } = window.jspdf;
