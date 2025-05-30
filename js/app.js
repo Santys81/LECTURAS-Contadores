@@ -2,6 +2,10 @@
 let contadores = [];
 let historialLecturas = [];
 let excelData = null;
+let mapaHidrantes = null;
+let marcadoresHidrantes = {};
+
+// Elementos DOM
 const excelFileInput = document.getElementById('excelFile');
 const importBtn = document.getElementById('importBtn');
 const saveBtn = document.getElementById('saveBtn');
@@ -11,6 +15,10 @@ const contadoresBody = document.getElementById('contadoresBody');
 const totalConsumoElement = document.getElementById('totalConsumo');
 const periodoLecturaInput = document.getElementById('periodoLectura');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const hidranteSelect = document.getElementById('hidranteSelect');
+const hidranteLatitud = document.getElementById('hidranteLatitud');
+const hidranteLongitud = document.getElementById('hidranteLongitud');
+const hidranteAltitud = document.getElementById('hidranteAltitud');
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mes = mes < 10 ? '0' + mes : mes;
     periodoLecturaInput.value = `${año}-${mes}`;
     
+    // Inicializar el mapa
+    inicializarMapa();
+    
     // Cargar datos guardados en localStorage
     cargarDatosGuardados();
     
@@ -30,6 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
     exportPdfBtn.addEventListener('click', mostrarPrevisualizacionPDF);
     exportExcelBtn.addEventListener('click', exportarExcel);
     downloadPdfBtn.addEventListener('click', descargarPDF);
+    
+    // Evento para el selector de hidrantes
+    hidranteSelect.addEventListener('change', () => {
+        const hidranteId = hidranteSelect.value;
+        seleccionarHidranteEnMapa(hidranteId);
+    });
     
     // Actualizar totales cuando se cambia una lectura
     contadoresBody.addEventListener('input', (e) => {
@@ -86,6 +103,152 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarHistorial();
 });
 
+// Funciones para el mapa de hidrantes
+
+// Inicializar el mapa de OpenStreetMap
+function inicializarMapa() {
+    // Comprobar si el contenedor del mapa existe
+    const mapContainer = document.getElementById('mapContainer');
+    if (!mapContainer) return;
+    
+    // Crear el mapa centrado en España (coordenadas aproximadas)
+    mapaHidrantes = L.map('mapContainer').setView([40.4168, -3.7038], 6);
+    
+    // Añadir capa de OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(mapaHidrantes);
+    
+    // Añadir capa de satélite de ESRI
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        maxZoom: 19
+    }).addTo(mapaHidrantes);
+    
+    // Inicializar con datos existentes si hay
+    if (contadores.length > 0) {
+        actualizarMarcadoresHidrantes();
+    }
+}
+
+// Actualizar los marcadores de hidrantes en el mapa
+function actualizarMarcadoresHidrantes() {
+    // Comprobar si el mapa se ha inicializado
+    if (!mapaHidrantes) return;
+    
+    // Limpiar marcadores existentes
+    Object.values(marcadoresHidrantes).forEach(marcador => mapaHidrantes.removeLayer(marcador));
+    marcadoresHidrantes = {};
+    
+    // Limpiar y actualizar el selector de hidrantes
+    hidranteSelect.innerHTML = '<option value="">Seleccione un hidrante...</option>';
+    
+    // Añadir marcadores para cada hidrante
+    const bounds = L.latLngBounds();
+    let hayCoordenadasValidas = false;
+    
+    contadores.forEach(contador => {
+        // Verificar si el contador tiene coordenadas válidas
+        if (contador.latitud && contador.longitud) {
+            const latLng = L.latLng(contador.latitud, contador.longitud);
+            hayCoordenadasValidas = true;
+            
+            // Determinar color según el grupo de hidrante
+            let colorMarcador = '#3498db'; // Azul por defecto
+            
+            if (contador.hidrante) {
+                // Detectar formato H01-051A, H02-059B, etc.
+                const hidranteMatchDetallado = contador.hidrante.match(/H0?(\d+)-/i);
+                if (hidranteMatchDetallado && hidranteMatchDetallado[1]) {
+                    const hidranteNum = parseInt(hidranteMatchDetallado[1]);
+                    const numClass = hidranteNum <= 10 ? hidranteNum : (hidranteNum % 10) || 10;
+                    
+                    // Asignar color según el número del hidrante
+                    switch(numClass) {
+                        case 1: colorMarcador = '#3498db'; break; // Azul
+                        case 2: colorMarcador = '#2ecc71'; break; // Verde
+                        case 3: colorMarcador = '#e74c3c'; break; // Rojo
+                        case 4: colorMarcador = '#f1c40f'; break; // Amarillo
+                        case 5: colorMarcador = '#9b59b6'; break; // Morado
+                        case 6: colorMarcador = '#1abc9c'; break; // Turquesa
+                        case 7: colorMarcador = '#e67e22'; break; // Naranja
+                        case 8: colorMarcador = '#00bcd4'; break; // Cyan
+                        case 9: colorMarcador = '#ff5722'; break; // Naranja oscuro
+                        case 10: colorMarcador = '#4caf50'; break; // Verde claro
+                    }
+                }
+            }
+            
+            // Crear icono personalizado con el color correspondiente
+            const icono = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color: ${colorMarcador}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">${contador.id}</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            
+            // Crear marcador
+            const marcador = L.marker(latLng, { icon: icono })
+                .addTo(mapaHidrantes)
+                .bindPopup(`
+                    <div style="text-align: center;">
+                        <h6>${contador.hidrante}</h6>
+                        <p><strong>ID:</strong> ${contador.id}</p>
+                        <p><strong>Última Lectura:</strong> ${Math.floor(contador.lecturaAnterior)}</p>
+                        <p><strong>Coordenadas:</strong><br>
+                        Lat: ${contador.latitud.toFixed(6)}<br>
+                        Lng: ${contador.longitud.toFixed(6)}<br>
+                        Alt: ${contador.altitud || 'N/A'} m</p>
+                    </div>
+                `);
+            
+            // Guardar referencia al marcador
+            marcadoresHidrantes[contador.id] = marcador;
+            
+            // Extender los límites del mapa para incluir este punto
+            bounds.extend(latLng);
+            
+            // Añadir al selector de hidrantes
+            const option = document.createElement('option');
+            option.value = contador.id;
+            option.textContent = `${contador.hidrante} (ID: ${contador.id})`;
+            hidranteSelect.appendChild(option);
+        }
+    });
+    
+    // Ajustar el mapa para mostrar todos los marcadores si hay coordenadas válidas
+    if (hayCoordenadasValidas) {
+        mapaHidrantes.fitBounds(bounds, { padding: [50, 50] });
+    }
+}
+
+// Seleccionar un hidrante en el mapa
+function seleccionarHidranteEnMapa(hidranteId) {
+    // Resetear la información mostrada
+    hidranteLatitud.textContent = '-';
+    hidranteLongitud.textContent = '-';
+    hidranteAltitud.textContent = '-';
+    
+    if (!hidranteId) return;
+    
+    // Buscar el contador correspondiente
+    const contador = contadores.find(c => c.id === hidranteId);
+    if (!contador) return;
+    
+    // Actualizar la información de coordenadas
+    if (contador.latitud) hidranteLatitud.textContent = contador.latitud.toFixed(6);
+    if (contador.longitud) hidranteLongitud.textContent = contador.longitud.toFixed(6);
+    if (contador.altitud) hidranteAltitud.textContent = `${contador.altitud} m`;
+    
+    // Enfocar el mapa en el marcador seleccionado
+    const marcador = marcadoresHidrantes[hidranteId];
+    if (marcador) {
+        mapaHidrantes.setView(marcador.getLatLng(), 18);
+        marcador.openPopup();
+    }
+}
+
 // Función para importar datos desde Excel
 function importarExcel() {
     const file = excelFileInput.files[0];
@@ -111,46 +274,6 @@ function importarExcel() {
                 return;
             }
             
-            // Mostrar información de debug sobre las columnas disponibles
-            if (jsonData.length > 0) {
-                console.log('Columnas disponibles en el Excel:', Object.keys(jsonData[0]));
-                console.log('Primera fila completa:', jsonData[0]);
-                
-                // Verificar específicamente si existe la columna de última lectura
-                const posiblesColumnas = [
-                    'ultima lectura',  // Columna J del usuario
-                    'ULTIMA LECTURA',
-                    'Ultima lectura',
-                    'última lectura',
-                    'ÚLTIMA LECTURA',
-                    'Última lectura',
-                    'ultima_lectura',
-                    'ultima lectura del mes',
-                    'ULTIMA LECTURA DEL MES'
-                ];
-                
-                let encontrada = false;
-                posiblesColumnas.forEach(col => {
-                    if (jsonData[0][col] !== undefined) {
-                        console.log('Encontrada columna de última lectura:', col, 'con valor:', jsonData[0][col]);
-                        encontrada = true;
-                    }
-                });
-                
-                if (!encontrada) {
-                    console.log('AVISO: No se encontró columna de "ultima lectura"');
-                    
-                    // Intentemos localizar la columna J por su contenido
-                    console.log('Buscando la columna J con datos numéricos que podría ser "ultima lectura"');
-                    for (const key in jsonData[0]) {
-                        if (typeof jsonData[0][key] === 'number' || 
-                            (typeof jsonData[0][key] === 'string' && !isNaN(parseFloat(jsonData[0][key])))) {
-                            console.log(`Posible columna de lecturas: "${key}" con valor: ${jsonData[0][key]}`);
-                        }
-                    }
-                }
-            }
-            
             // Procesar datos
             procesarDatosExcel(jsonData);
             
@@ -174,45 +297,6 @@ function procesarDatosExcel(jsonData) {
     contadores = [];
     
     // Mapear datos del Excel a nuestro formato
-        // Lista ampliada de posibles nombres de columna para última lectura del mes
-    const ultimaLecturaColumnas = [
-        'ultima lectura',  // Añadido específicamente para la columna J del usuario
-        'ULTIMA LECTURA',
-        'Ultima lectura',
-        'última lectura',
-        'ÚLTIMA LECTURA',
-        'Última lectura',
-        'ultima_lectura',
-        'ultima lectura del mes',
-        'ULTIMA LECTURA DEL MES',
-        'Ultima lectura del mes',
-        'última lectura del mes',
-        'ÚLTIMA LECTURA DEL MES',
-        'Última lectura del mes',
-        'ultima_lectura_del_mes',
-        'ULTIMA_LECTURA_DEL_MES',
-        'UltimaLecturaDelMes',
-        'ultima lectura mes',
-        'ultima',
-        'ULTIMA',
-        'lectura',
-        'LECTURA',
-        'lectura mes',
-        'LECTURA MES'
-    ];
-    
-    // Verifica si alguna de las columnas existe
-    let columnaUltimaLectura = null;
-    if (jsonData.length > 0) {
-        for (const colName of ultimaLecturaColumnas) {
-            if (jsonData[0][colName] !== undefined) {
-                columnaUltimaLectura = colName;
-                console.log('Usando columna para última lectura:', colName);
-                break;
-            }
-        }
-    }
-    
     jsonData.forEach((row, index) => {
         // Intentar identificar las columnas del Excel específico de CCRR LIAR Y CARBONIEL
         const id = row.ID || row.Id || row.id || row.TOMA || row.Toma || row.toma || row.NUM || row.Num || row.num || index + 1;
@@ -221,16 +305,14 @@ function procesarDatosExcel(jsonData) {
         let lecturaAnterior = 0;
         
         // Si encontramos la columna específica, la usamos
-        if (columnaUltimaLectura) {
-            lecturaAnterior = parseFloat(row[columnaUltimaLectura] || 0);
-            console.log(`Lectura para ID ${id}: ${lecturaAnterior} (de columna ${columnaUltimaLectura})`);
+        if (row['Última Lectura']) {
+            lecturaAnterior = parseFloat(row['Última Lectura'] || 0);
         } else {
             // Buscar específicamente si existe alguna propiedad con nombre que contenga "ultima lectura"
             let encontrada = false;
             for (const key in row) {
                 if (key.toLowerCase().includes('ultima lectura') || key.toLowerCase().includes('última lectura')) {
                     lecturaAnterior = parseFloat(row[key] || 0);
-                    console.log(`Encontrada columna por búsqueda parcial: ${key} con valor: ${lecturaAnterior}`);
                     encontrada = true;
                     break;
                 }
@@ -243,7 +325,6 @@ function procesarDatosExcel(jsonData) {
                     row['ÚLTIMA LECTURA'] || row['Última Lectura'] || row['última lectura'] || 
                     row.CONTADOR || row.Contador || row.contador || 0
                 );
-                console.log(`Lectura para ID ${id}: ${lecturaAnterior} (de columna alternativa)`);
             }
         }
         
@@ -261,6 +342,9 @@ function procesarDatosExcel(jsonData) {
     
     // Renderizar tabla
     renderizarTablaContadores();
+    
+    // Actualizar el mapa con los nuevos hidrantes
+    actualizarMarcadoresHidrantes();
 }
 
 // Renderizar tabla de contadores
@@ -359,7 +443,10 @@ function renderizarTablaContadores() {
             const hidrante = contador.hidrante || '';
             const lecturaAnterior = Math.floor(contador.lecturaAnterior || 0);
             const lecturaActual = Math.floor(contador.lecturaActual || lecturaAnterior);
-            const consumo = Math.floor(contador.consumo || 0);
+            
+            // Recalcular siempre el consumo para asegurarnos que es correcto
+            contador.consumo = Math.max(0, lecturaActual - lecturaAnterior);
+            const consumo = Math.floor(contador.consumo);
             
             // Estado predeterminado: no verificado
             if (!contador.incidencia) contador.incidencia = '';
@@ -536,6 +623,9 @@ function cargarRegistroHistorico(index) {
     
     // Renderizar tabla
     renderizarTablaContadores();
+    
+    // Actualizar el mapa con los nuevos hidrantes
+    actualizarMarcadoresHidrantes();
 }
 
 // Eliminar un registro histórico
@@ -553,8 +643,16 @@ function eliminarRegistroHistorico(index) {
 
 // Cargar datos guardados en localStorage
 function cargarDatosGuardados() {
-    const historialGuardado = localStorage.getItem('historialLecturas');
+    // Intentar cargar datos desde localStorage
+    const contadoresGuardados = localStorage.getItem('contadores');
+    if (contadoresGuardados) {
+        contadores = JSON.parse(contadoresGuardados);
+        renderizarTablaContadores();
+        actualizarMarcadoresHidrantes();
+    }
     
+    // Cargar historial
+    const historialGuardado = localStorage.getItem('historialLecturas');
     if (historialGuardado) {
         historialLecturas = JSON.parse(historialGuardado);
         renderizarHistorialLecturas();
