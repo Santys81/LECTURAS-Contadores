@@ -48,10 +48,30 @@
                         </div>
                         <div class="card-body">
                             <p>Selecciona un archivo Excel con los datos de los contadores:</p>
-                            <input type="file" id="excelFile" class="form-control mb-3" accept=".xlsx, .xls">
-                            <button id="importBtn" class="btn btn-primary">
-                                <i class="bi bi-upload me-2"></i>Importar Datos
-                            </button>
+                            <div class="alert alert-info small">
+                                <strong><i class="bi bi-info-circle"></i> Formato esperado:</strong>
+                                <p class="mb-1 mt-1">El archivo debe contener al menos las columnas:</p>
+                                <ul class="mb-1">
+                                    <li><strong>ID/TOMA</strong>: Identificador único del contador</li>
+                                    <li><strong>HIDRANTE/CONTADOR</strong>: Código del hidrante (Ej: H01-001)</li>
+                                    <li><strong>ÚLTIMA LECTURA</strong>: Valor numérico de la lectura anterior</li>
+                                </ul>
+                                <p class="mb-0">Puedes incluir columnas adicionales para latitud/longitud si deseas ubicaciones precisas.</p>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <input type="file" id="excelFile" class="form-control me-2" accept=".xlsx, .xls">
+                                <button id="downloadTemplate" class="btn btn-outline-primary" title="Descargar plantilla Excel">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                            </div>
+                            <div class="d-grid">
+                                <button id="importBtn" class="btn btn-primary">
+                                    <i class="bi bi-upload me-2"></i>Importar Datos
+                                </button>
+                            </div>
+                            <div id="importProgress" class="progress mt-3 d-none">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
