@@ -4,6 +4,8 @@ let historialLecturas = [];
 let excelData = null;
 let mapaHidrantes = null;
 let marcadoresHidrantes = {};
+let modoEdicion = false;
+let hidrateSeleccionadoParaEdicion = null;
 
 // Elementos DOM
 const excelFileInput = document.getElementById('excelFile');
@@ -140,9 +142,9 @@ function inicializarMapa() {
     
     L.control.layers(baseLayers, null, { position: 'topright' }).addTo(mapaHidrantes);
     
-    // Modo de edición (por defecto desactivado)
-    let modoEdicion = false;
-    let hidrateSeleccionadoParaEdicion = null;
+    // Modo de edición (usando variables globales)
+    modoEdicion = false;
+    hidrateSeleccionadoParaEdicion = null;
     
     // Añadir botón de edición al mapa
     const botonEdicion = L.control({ position: 'topleft' });
@@ -236,15 +238,29 @@ function inicializarMapa() {
     if (contadores.length > 0) {
         actualizarMarcadoresHidrantes();
     }
-    
+
     // Función para actualizar hidrante seleccionado para edición
     window.seleccionarHidranteParaEdicion = function(hidranteId) {
         hidrateSeleccionadoParaEdicion = hidranteId;
-        if (modoEdicion) {
-            const contador = contadores.find(c => c.id == hidranteId);
-            if (contador) {
-                mostrarNotificacion(`Hidrante ${contador.hidrante} seleccionado. Haga clic en el mapa para ubicarlo.`);
+
+        // Activamos automáticamente el modo edición si no está activo
+        if (!modoEdicion) {
+            const toggleBtn = document.getElementById('toggleEdicionBtn');
+            if (toggleBtn && !toggleBtn.classList.contains('btn-danger')) {
+                toggleBtn.click(); // Activar el modo edición
             }
+        }
+
+        const contador = contadores.find(c => c.id == hidranteId);
+        if (contador) {
+            // Si el contador tiene coordenadas, centramos el mapa en él
+            if (contador.latitud && contador.longitud) {
+                mapaHidrantes.setView([contador.latitud, contador.longitud], 18);
+                if (marcadoresHidrantes[contador.id]) {
+                    marcadoresHidrantes[contador.id].openPopup();
+                }
+            }
+            mostrarNotificacion(`Hidrante ${contador.hidrante} seleccionado. Haga clic en el mapa para ubicarlo o arrastre el marcador.`);
         }
     };
 }
