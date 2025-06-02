@@ -1,5 +1,6 @@
 // Variables globales
 let contadores = [];
+let historialLecturas = [];
 
 // Elementos DOM
 const excelFileInput = document.getElementById('excelFile');
@@ -11,6 +12,9 @@ const contadoresBody = document.getElementById('contadoresBody');
 const totalConsumoElement = document.getElementById('totalConsumo');
 const periodoLecturaInput = document.getElementById('periodoLectura');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const downloadTemplateBtn = document.getElementById('downloadTemplate');
+const importProgress = document.getElementById('importProgress');
+const progressBar = importProgress ? importProgress.querySelector('.progress-bar') : null;
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,6 +34,11 @@ document.addEventListener('DOMContentLoaded', () => {
     exportPdfBtn.addEventListener('click', mostrarPrevisualizacionPDF);
     exportExcelBtn.addEventListener('click', exportarExcel);
     downloadPdfBtn.addEventListener('click', descargarPDF);
+    
+    // Evento para descargar la plantilla Excel
+    if (downloadTemplateBtn) {
+        downloadTemplateBtn.addEventListener('click', descargarPlantillaExcel);
+    }
     
     // Actualizar totales cuando se cambia una lectura
     contadoresBody.addEventListener('input', (e) => {
@@ -117,6 +126,39 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
     }
 }
 
+// Función para descargar una plantilla Excel de ejemplo
+function descargarPlantillaExcel() {
+    // Crear un nuevo libro de trabajo
+    const wb = XLSX.utils.book_new();
+    
+    // Datos para la hoja de cálculo (encabezados y ejemplos)
+    const headers = ['ID', 'HIDRANTE', 'ULTIMA LECTURA', 'LATITUD', 'LONGITUD', 'ALTITUD'];
+    
+    // Ejemplos de datos
+    const ejemplos = [
+        ['1', 'H01-001', '0', '41.442453', '-1.237450', '420'],
+        ['2', 'H01-002', '0', '', '', ''],
+        ['3', 'H02-001', '0', '', '', ''],
+        ['4', 'H02-002', '0', '', '', ''],
+        ['5', 'H03-001', '0', '', '', '']
+    ];
+    
+    // Combinar encabezados con ejemplos
+    const wsData = [headers, ...ejemplos];
+    
+    // Crear hoja de cálculo
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Añadir la hoja al libro
+    XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
+    
+    // Exportar el archivo
+    XLSX.writeFile(wb, 'Plantilla_Contadores.xlsx');
+    
+    // Notificar al usuario
+    mostrarNotificacion('Plantilla Excel descargada correctamente', 'success');
+}
+
 // Función para importar datos desde Excel
 function importarExcel() {
     const file = excelFileInput.files[0];
@@ -125,13 +167,46 @@ function importarExcel() {
         return;
     }
     
+    // Mostrar barra de progreso
+    if (importProgress) {
+        importProgress.classList.remove('d-none');
+        if (progressBar) progressBar.style.width = '30%';
+    }
+    
+    // Deshabilitar botón para evitar doble importación
+    importBtn.disabled = true;
+    
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
-            procesarExcel(e.target.result);
+            if (importProgress && progressBar) progressBar.style.width = '60%';
+            const result = procesarExcel(e.target.result);
+            
+            if (importProgress && progressBar) {
+                progressBar.style.width = '100%';
+                // Ocultar la barra después de un tiempo
+                setTimeout(() => {
+                    importProgress.classList.add('d-none');
+                    progressBar.style.width = '0%';
+                }, 1500);
+            }
+            
+            // Re-habilitar botón
+            importBtn.disabled = false;
+            
+            if (result) {
+                mostrarNotificacion('Datos importados correctamente', 'success');
+            }
         } catch (error) {
             console.error('Error al procesar el archivo:', error);
-            alert('Error al procesar el archivo. Verifica que sea un archivo Excel válido.');
+            alert(`Error al procesar el archivo: ${error.message}`);
+            
+            if (importProgress) {
+                importProgress.classList.add('d-none');
+            }
+            
+            // Re-habilitar botón
+            importBtn.disabled = false;
         }
     };
     
