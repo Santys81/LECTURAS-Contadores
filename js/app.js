@@ -42,6 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
     exportExcelBtn.addEventListener('click', exportarExcel);
     downloadPdfBtn.addEventListener('click', descargarPDF);
     
+    // Botón para generar hidrantes de demostración
+    const generarHidrantesBtn = document.getElementById('generarHidrantesBtn');
+    if (generarHidrantesBtn) {
+        generarHidrantesBtn.addEventListener('click', generarHidrantesDemo);
+    }
+    
     // Evento para el selector de hidrantes
     hidranteSelect.addEventListener('change', () => {
         const hidranteId = hidranteSelect.value;
@@ -111,8 +117,8 @@ function inicializarMapa() {
     const mapContainer = document.getElementById('mapContainer');
     if (!mapContainer) return;
     
-    // Crear el mapa centrado en España (coordenadas aproximadas)
-    mapaHidrantes = L.map('mapContainer').setView([40.4168, -3.7038], 6);
+    // Crear el mapa centrado en Alfamén, Zaragoza (coordenadas proporcionadas por el usuario)
+    mapaHidrantes = L.map('mapContainer').setView([41.442453, -1.237450], 14);
     
     // Añadir capa de OpenStreetMap como capa base
     const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1003,7 +1009,14 @@ function cargarDatosGuardados() {
     if (contadoresGuardados) {
         contadores = JSON.parse(contadoresGuardados);
         renderizarTablaContadores();
-        actualizarMarcadoresHidrantes();
+        
+        // Actualizar el mapa si existe
+        if (mapaHidrantes) {
+            actualizarMarcadoresHidrantes();
+        }
+        
+        // Habilitar botones
+        habilitarBotones();
     }
     
     // Cargar historial
@@ -1012,6 +1025,80 @@ function cargarDatosGuardados() {
         historialLecturas = JSON.parse(historialGuardado);
         renderizarHistorialLecturas();
     }
+}
+
+// Generar 33 hidrantes de ejemplo
+function generarHidrantesDemo() {
+    // Preguntar al usuario si está seguro
+    if (contadores.length > 0) {
+        if (!confirm('¿Estás seguro de que quieres generar 33 hidrantes de demostración? Se borrarán los hidrantes existentes.')) {
+            return;
+        }
+    }
+    
+    // Limpiar contadores existentes
+    contadores = [];
+    
+    // Centro aproximado para la distribución (coordenadas de Alfamén, Zaragoza)
+    const centro = { lat: 41.442453, lng: -1.237450 };
+    
+    // Generar 33 hidrantes en diferentes zonas
+    for (let i = 1; i <= 33; i++) {
+        // Determinar grupo (H01, H02, H03, etc.)
+        const grupoNum = Math.ceil(i / 11);
+        const idInGrupo = i % 11 || 11;
+        
+        // Crear ID formateado
+        const hidrante = `H${grupoNum.toString().padStart(2, '0')}-${idInGrupo.toString().padStart(3, '0')}`;
+        
+        // Crear coordenadas distribuidas alrededor del centro
+        // Distribución en círculos concéntricos según el grupo
+        // Usando un radio mayor para que los hidrantes sean más visibles y fáciles de mover
+        const radio = 0.005 * grupoNum;
+        const angulo = ((i % 11) / 11) * Math.PI * 2;
+        
+        const lat = centro.lat + Math.sin(angulo) * radio;
+        const lng = centro.lng + Math.cos(angulo) * radio;
+        
+        // Crear el contador
+        const contador = {
+            id: i,
+            hidrante: hidrante,
+            lecturaAnterior: Math.floor(Math.random() * 1000),
+            lecturaActual: Math.floor(Math.random() * 1000),
+            consumo: 0,
+            incidencia: '',
+            estado: 'pendiente',
+            latitud: lat,
+            longitud: lng,
+            altitud: Math.floor(100 + Math.random() * 50)
+        };
+        
+        // Calcular consumo
+        contador.consumo = Math.max(0, contador.lecturaActual - contador.lecturaAnterior);
+        
+        // Añadir a la lista
+        contadores.push(contador);
+    }
+    
+    // Renderizar tabla y actualizar mapa
+    renderizarTablaContadores();
+    actualizarMarcadoresHidrantes();
+    
+    // Guardar en localStorage
+    localStorage.setItem('contadores', JSON.stringify(contadores));
+    
+    // Activar el modo de edición para empezar a posicionar
+    setTimeout(() => {
+        const toggleBtn = document.getElementById('toggleEdicionBtn');
+        if (toggleBtn && !toggleBtn.classList.contains('btn-danger')) {
+            toggleBtn.click();
+        }
+        mostrarNotificacion('Se han generado 33 hidrantes de ejemplo. Ahora puedes posicionarlos en el mapa.', 'success');
+    }, 500);
+    
+    // Habilitar botones
+    habilitarBotones();
 }
 
 // Mostrar previsualización del PDF
