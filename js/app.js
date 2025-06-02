@@ -694,6 +694,19 @@ function eliminarRegistroHistorico(index) {
     }
 }
 
+// Función para habilitar los botones cuando hay datos cargados
+function habilitarBotones() {
+    if (contadores && contadores.length > 0) {
+        saveBtn.disabled = false;
+        exportPdfBtn.disabled = false;
+        exportExcelBtn.disabled = false;
+    } else {
+        saveBtn.disabled = true;
+        exportPdfBtn.disabled = true;
+        exportExcelBtn.disabled = true;
+    }
+}
+
 // Cargar datos guardados en localStorage
 function cargarDatosGuardados() {
     // Intentar cargar datos desde localStorage
