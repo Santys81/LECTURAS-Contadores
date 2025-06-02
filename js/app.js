@@ -1,11 +1,5 @@
 // Variables globales
 let contadores = [];
-let historialLecturas = [];
-let excelData = null;
-let mapaHidrantes = null;
-let marcadoresHidrantes = {};
-let modoEdicion = false;
-let hidrateSeleccionadoParaEdicion = null;
 
 // Elementos DOM
 const excelFileInput = document.getElementById('excelFile');
@@ -17,10 +11,6 @@ const contadoresBody = document.getElementById('contadoresBody');
 const totalConsumoElement = document.getElementById('totalConsumo');
 const periodoLecturaInput = document.getElementById('periodoLectura');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
-const hidranteSelect = document.getElementById('hidranteSelect');
-const hidranteLatitud = document.getElementById('hidranteLatitud');
-const hidranteLongitud = document.getElementById('hidranteLongitud');
-const hidranteAltitud = document.getElementById('hidranteAltitud');
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,9 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     mes = mes < 10 ? '0' + mes : mes;
     periodoLecturaInput.value = `${año}-${mes}`;
     
-    // Inicializar el mapa
-    inicializarMapa();
-    
     // Cargar datos guardados en localStorage
     cargarDatosGuardados();
     
@@ -43,18 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
     exportPdfBtn.addEventListener('click', mostrarPrevisualizacionPDF);
     exportExcelBtn.addEventListener('click', exportarExcel);
     downloadPdfBtn.addEventListener('click', descargarPDF);
-    
-    // Botón para generar hidrantes de demostración
-    const generarHidrantesBtn = document.getElementById('generarHidrantesBtn');
-    if (generarHidrantesBtn) {
-        generarHidrantesBtn.addEventListener('click', generarHidrantesDemo);
-    }
-    
-    // Evento para el selector de hidrantes
-    hidranteSelect.addEventListener('change', () => {
-        const hidranteId = hidranteSelect.value;
-        seleccionarHidranteEnMapa(hidranteId);
-    });
     
     // Actualizar totales cuando se cambia una lectura
     contadoresBody.addEventListener('input', (e) => {
@@ -111,408 +86,34 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarDatosGuardados();
 });
 
-// Funciones para el mapa de hidrantes
-
-// Inicializar el mapa de OpenStreetMap
-function inicializarMapa() {
-    // Comprobar si el contenedor del mapa existe
-    const mapContainer = document.getElementById('mapContainer');
-    if (!mapContainer) return;
-    
-    // Crear el mapa centrado en Alfamén, Zaragoza (coordenadas proporcionadas por el usuario)
-    mapaHidrantes = L.map('mapContainer').setView([41.442453, -1.237450], 14);
-    
-    // Añadir capa de OpenStreetMap como capa base
-    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-    }).addTo(mapaHidrantes);
-    
-    // Añadir capa de satélite de ESRI
-    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-        maxZoom: 19
-    });
-    
-    // Añadir control de capas al mapa
-    const baseLayers = {
-        "OpenStreetMap": osmLayer,
-        "Satélite": satelliteLayer
-    };
-    
-    L.control.layers(baseLayers, null, { position: 'topright' }).addTo(mapaHidrantes);
-    
-    // Modo de edición (usando variables globales)
-    modoEdicion = false;
-    hidrateSeleccionadoParaEdicion = null;
-    
-    // Añadir botón de edición al mapa
-    const botonEdicion = L.control({ position: 'topleft' });
-    botonEdicion.onAdd = function() {
-        const div = L.DomUtil.create('div', 'info leaflet-control-edicion');
-        div.innerHTML = `
-            <button id="toggleEdicionBtn" class="btn btn-sm btn-secondary">
-                <i class="fas fa-map-marker-alt"></i> Modo Ubicación
-            </button>
-        `;
-        return div;
-    };
-    botonEdicion.addTo(mapaHidrantes);
-    
-    // Añadir información de instrucciones
-    const infoControl = L.control({ position: 'bottomleft' });
-    infoControl.onAdd = function() {
-        const div = L.DomUtil.create('div', 'info bg-dark text-light p-2');
-        div.style.borderRadius = '5px';
-        div.style.padding = '8px';
-        div.style.display = 'none';
-        div.id = 'instruccionesEdicion';
-        div.innerHTML = `
-            <strong>Modo Ubicación Activado</strong><br>
-            1. Seleccione un hidrante del desplegable<br>
-            2. Haga clic en el mapa para posicionarlo<br>
-            3. O arrastre un marcador existente para reubicarlo
-        `;
-        return div;
-    };
-    infoControl.addTo(mapaHidrantes);
-    
-    // Evento de clic en el mapa para ubicar hidrantes
-    mapaHidrantes.on('click', function(e) {
-        if (modoEdicion && hidrateSeleccionadoParaEdicion) {
-            const contador = contadores.find(c => c.id == hidrateSeleccionadoParaEdicion);
-            if (contador) {
-                // Actualizar coordenadas
-                contador.latitud = e.latlng.lat;
-                contador.longitud = e.latlng.lng;
-                
-                // Refrescar marcadores
-                actualizarMarcadoresHidrantes();
-                
-                // Actualizar panel de información
-                mostrarCoordenadasHidrante(contador);
-                
-                // Guardar cambios
-                guardarDatosLocalmente();
-                
-                // Mostrar mensaje
-                mostrarNotificacion(`Hidrante ${contador.hidrante} ubicado correctamente`);
-            }
-        }
-    });
-    
-    // Configurar el botón de modo edición después de añadirlo al DOM
-    setTimeout(() => {
-        const toggleBtn = document.getElementById('toggleEdicionBtn');
-        const instrucciones = document.getElementById('instruccionesEdicion');
-        
-        if (toggleBtn && instrucciones) {
-            toggleBtn.addEventListener('click', function() {
-                modoEdicion = !modoEdicion;
-                
-                // Actualizar apariencia del botón
-                if (modoEdicion) {
-                    toggleBtn.classList.remove('btn-secondary');
-                    toggleBtn.classList.add('btn-danger');
-                    toggleBtn.innerHTML = '<i class="fas fa-times"></i> Finalizar Ubicación';
-                    instrucciones.style.display = 'block';
-                } else {
-                    toggleBtn.classList.remove('btn-danger');
-                    toggleBtn.classList.add('btn-secondary');
-                    toggleBtn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Modo Ubicación';
-                    instrucciones.style.display = 'none';
-                    hidrateSeleccionadoParaEdicion = null;
-                }
-                
-                // Notificar al usuario
-                if (modoEdicion) {
-                    mostrarNotificacion('Modo de ubicación activado. Seleccione un hidrante y haga clic en el mapa.');
-                } else {
-                    mostrarNotificacion('Modo de ubicación desactivado. Cambios guardados.');
-                }
-            });
-        }
-    }, 500);
-    
-    // Inicializar con datos existentes si hay
-    if (contadores.length > 0) {
-        actualizarMarcadoresHidrantes();
-    }
-
-    // Función para actualizar hidrante seleccionado para edición
-    window.seleccionarHidranteParaEdicion = function(hidranteId) {
-        hidrateSeleccionadoParaEdicion = hidranteId;
-
-        // Activamos automáticamente el modo edición si no está activo
-        if (!modoEdicion) {
-            const toggleBtn = document.getElementById('toggleEdicionBtn');
-            if (toggleBtn && !toggleBtn.classList.contains('btn-danger')) {
-                toggleBtn.click(); // Activar el modo edición
-            }
-        }
-
-        const contador = contadores.find(c => c.id == hidranteId);
-        if (contador) {
-            // Si el contador tiene coordenadas, centramos el mapa en él
-            if (contador.latitud && contador.longitud) {
-                mapaHidrantes.setView([contador.latitud, contador.longitud], 18);
-                if (marcadoresHidrantes[contador.id]) {
-                    marcadoresHidrantes[contador.id].openPopup();
-                }
-            }
-            mostrarNotificacion(`Hidrante ${contador.hidrante} seleccionado. Haga clic en el mapa para ubicarlo o arrastre el marcador.`);
-        }
-    };
-}
-
-// Actualizar los marcadores de hidrantes en el mapa
-function actualizarMarcadoresHidrantes() {
-    // Comprobar si el mapa se ha inicializado
-    if (!mapaHidrantes) return;
-    
-    // Limpiar marcadores existentes
-    Object.values(marcadoresHidrantes).forEach(marcador => mapaHidrantes.removeLayer(marcador));
-    marcadoresHidrantes = {};
-    
-    // Limpiar y actualizar el selector de hidrantes
-    hidranteSelect.innerHTML = '<option value="">Seleccione un hidrante...</option>';
-    
-    // Añadir marcadores para cada hidrante
-    const bounds = L.latLngBounds();
-    let hayCoordenadasValidas = false;
-    
-    contadores.forEach(contador => {
-        // Verificar si el contador tiene coordenadas válidas
-        if (contador.latitud && contador.longitud) {
-            const latLng = L.latLng(contador.latitud, contador.longitud);
-            hayCoordenadasValidas = true;
-            
-            // Determinar color según el grupo de hidrante
-            let colorMarcador = '#3498db'; // Azul por defecto
-            
-            if (contador.hidrante) {
-                // Detectar formato H01-051A, H02-059B, etc.
-                const hidranteMatchDetallado = contador.hidrante.match(/H0?(\d+)-/i);
-                if (hidranteMatchDetallado && hidranteMatchDetallado[1]) {
-                    const hidranteNum = parseInt(hidranteMatchDetallado[1]);
-                    const numClass = hidranteNum <= 10 ? hidranteNum : (hidranteNum % 10) || 10;
-                    
-                    // Asignar color según el número del hidrante
-                    switch(numClass) {
-                        case 1: colorMarcador = '#3498db'; break; // Azul
-                        case 2: colorMarcador = '#2ecc71'; break; // Verde
-                        case 3: colorMarcador = '#e74c3c'; break; // Rojo
-                        case 4: colorMarcador = '#f1c40f'; break; // Amarillo
-                        case 5: colorMarcador = '#9b59b6'; break; // Morado
-                        case 6: colorMarcador = '#1abc9c'; break; // Turquesa
-                        case 7: colorMarcador = '#e67e22'; break; // Naranja
-                        case 8: colorMarcador = '#00bcd4'; break; // Cyan
-                        case 9: colorMarcador = '#ff5722'; break; // Naranja oscuro
-                        case 10: colorMarcador = '#4caf50'; break; // Verde claro
-                    }
-                }
-            }
-            
-            // Crear icono personalizado con el color correspondiente
-            const icono = L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="background-color: ${colorMarcador}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">${contador.id}</div>`,
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            });
-            
-            // Crear marcador con opción de arrastrar
-            const marcador = L.marker(latLng, { 
-                icon: icono,
-                draggable: true  // Permitir arrastrar el marcador
-            })
-            .addTo(mapaHidrantes)
-            .bindPopup(`
-                <div style="text-align: center;">
-                    <h6>${contador.hidrante}</h6>
-                    <p><strong>ID:</strong> ${contador.id}</p>
-                    <p><strong>Última Lectura:</strong> ${Math.floor(contador.lecturaAnterior)}</p>
-                    <p><strong>Coordenadas:</strong><br>
-                    Lat: ${contador.latitud.toFixed(6)}<br>
-                    Lng: ${contador.longitud.toFixed(6)}<br>
-                    Alt: ${contador.altitud || 'N/A'} m</p>
-                    <button class="btn btn-sm btn-primary ubicar-hidrante-btn" 
-                            data-hidrante-id="${contador.id}">
-                        Editar ubicación
-                    </button>
-                </div>
-            `);
-            
-            // Evento cuando se arrastra y suelta el marcador
-            marcador.on('dragend', function(event) {
-                const marcador = event.target;
-                const posicion = marcador.getLatLng();
-                
-                // Actualizar coordenadas del contador
-                contador.latitud = posicion.lat;
-                contador.longitud = posicion.lng;
-                
-                // Actualizar el popup con las nuevas coordenadas
-                marcador.setPopupContent(`
-                    <div style="text-align: center;">
-                        <h6>${contador.hidrante}</h6>
-                        <p><strong>ID:</strong> ${contador.id}</p>
-                        <p><strong>Última Lectura:</strong> ${Math.floor(contador.lecturaAnterior)}</p>
-                        <p><strong>Coordenadas:</strong><br>
-                        Lat: ${contador.latitud.toFixed(6)}<br>
-                        Lng: ${contador.longitud.toFixed(6)}<br>
-                        Alt: ${contador.altitud || 'N/A'} m</p>
-                        <button class="btn btn-sm btn-primary ubicar-hidrante-btn" 
-                                data-hidrante-id="${contador.id}">
-                            Editar ubicación
-                        </button>
-                    </div>
-                `);
-                
-                // Actualizar panel de información si es el hidrante seleccionado
-                if (hidranteSelect.value === contador.id) {
-                    mostrarCoordenadasHidrante(contador);
-                }
-                
-                // Guardar cambios
-                guardarDatosLocalmente();
-                
-                // Mostrar mensaje
-                mostrarNotificacion(`Hidrante ${contador.hidrante} reposicionado correctamente`);
-            });
-            
-            // Evento para los botones dentro del popup
-            marcador.on('popupopen', function() {
-                setTimeout(() => {
-                    const botones = document.querySelectorAll('.ubicar-hidrante-btn');
-                    botones.forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const hidranteId = this.getAttribute('data-hidrante-id');
-                            window.seleccionarHidranteParaEdicion(hidranteId);
-                        });
-                    });
-                }, 100);
-            });
-            
-            // Guardar referencia al marcador
-            marcadoresHidrantes[contador.id] = marcador;
-            
-            // Extender los límites del mapa para incluir este punto
-            bounds.extend(latLng);
-            
-            // Añadir al selector de hidrantes
-            const option = document.createElement('option');
-            option.value = contador.id;
-            option.textContent = `${contador.hidrante} (ID: ${contador.id})`;
-            hidranteSelect.appendChild(option);
-        }
-    });
-    
-    // Ajustar el mapa para mostrar todos los marcadores si hay coordenadas válidas
-    if (hayCoordenadasValidas) {
-        mapaHidrantes.fitBounds(bounds, { padding: [50, 50] });
-    }
-}
-
-// Mostrar coordenadas de un hidrante en el panel de información
-function mostrarCoordenadasHidrante(contador) {
-    if (contador && contador.latitud && contador.longitud) {
-        hidranteLatitud.textContent = contador.latitud.toFixed(6);
-        hidranteLongitud.textContent = contador.longitud.toFixed(6);
-        hidranteAltitud.textContent = contador.altitud ? `${contador.altitud} m` : 'N/A';
-    } else {
-        hidranteLatitud.textContent = 'N/A';
-        hidranteLongitud.textContent = 'N/A';
-        hidranteAltitud.textContent = 'N/A';
-    }
-}
-
-// Guardar datos localmente
-function guardarDatosLocalmente() {
-    localStorage.setItem('contadores', JSON.stringify(contadores));
-    mostrarNotificacion('Datos guardados correctamente');
-}
-
 // Mostrar notificación
 function mostrarNotificacion(mensaje, tipo = 'info') {
-    // Comprobar si el contenedor de notificaciones existe
-    let notificacionesContainer = document.getElementById('notificacionesContainer');
-    if (!notificacionesContainer) {
-        // Crear el contenedor si no existe
-        notificacionesContainer = document.createElement('div');
-        notificacionesContainer.id = 'notificacionesContainer';
-        notificacionesContainer.style.position = 'fixed';
-        notificacionesContainer.style.bottom = '20px';
-        notificacionesContainer.style.right = '20px';
-        notificacionesContainer.style.zIndex = '9999';
-        document.body.appendChild(notificacionesContainer);
-    }
+    const notificacionToast = document.getElementById('notificacionToast');
+    const notificacionMensaje = document.getElementById('notificacionMensaje');
     
-    // Crear la notificación
-    const notificacion = document.createElement('div');
-    notificacion.className = `alert alert-${tipo} alert-dismissible fade show`;
-    notificacion.style.marginTop = '10px';
-    notificacion.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-    notificacion.style.maxWidth = '300px';
-    
-    notificacion.innerHTML = `
-        ${mensaje}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    
-    // Añadir la notificación al contenedor
-    notificacionesContainer.appendChild(notificacion);
-    
-    // Eliminar automáticamente después de 5 segundos
-    setTimeout(() => {
-        notificacion.classList.remove('show');
-        setTimeout(() => {
-            if (notificacion.parentNode) {
-                notificacionesContainer.removeChild(notificacion);
-            }
-        }, 300);
-    }, 5000);
-}
-
-// Seleccionar un hidrante en el mapa
-function seleccionarHidranteEnMapa(hidranteId) {
-    // Resetear la información mostrada
-    hidranteLatitud.textContent = 'N/A';
-    hidranteLongitud.textContent = 'N/A';
-    hidranteAltitud.textContent = 'N/A';
-    
-    if (!hidranteId) return;
-    
-    // Buscar el contador seleccionado
-    const contador = contadores.find(c => c.id == hidranteId);
-    if (!contador) return;
-    
-    // Actualizar el hidrante seleccionado para edición si estamos en modo edición
-    if (document.getElementById('toggleEdicionBtn')?.classList.contains('btn-danger')) {
-        window.seleccionarHidranteParaEdicion(hidranteId);
-    }
-    
-    // Mostrar las coordenadas del hidrante seleccionado
-    if (contador.latitud && contador.longitud) {
-        mostrarCoordenadasHidrante(contador);
+    if (notificacionToast && notificacionMensaje) {
+        // Establecer el mensaje
+        notificacionMensaje.textContent = mensaje;
         
-        // Buscar el marcador correspondiente
-        const marcador = marcadoresHidrantes[hidranteId];
-        if (marcador) {
-            // Centrar el mapa en el marcador
-            mapaHidrantes.setView(marcador.getLatLng(), 18);
-            // Abrir el popup
-            marcador.openPopup();
-        }
-    } else {
-        // Si el hidrante no tiene coordenadas y estamos en modo edición
-        if (document.getElementById('toggleEdicionBtn')?.classList.contains('btn-danger')) {
-            mostrarNotificacion(`Seleccione un punto en el mapa para ubicar el hidrante ${contador.hidrante}`, 'warning');
-            // Hacer zoom al centro del mapa
-            mapaHidrantes.setView([40.4168, -3.7038], 6);
+        // Establecer el color según el tipo
+        notificacionToast.className = 'toast';
+        
+        if (tipo === 'success') {
+            notificacionToast.classList.add('bg-success', 'text-white');
+        } else if (tipo === 'warning') {
+            notificacionToast.classList.add('bg-warning', 'text-dark');
+        } else if (tipo === 'error') {
+            notificacionToast.classList.add('bg-danger', 'text-white');
         } else {
-            mostrarNotificacion(`El hidrante ${contador.hidrante} no tiene coordenadas definidas. Active el modo ubicación para asignarlas.`, 'warning');
+            notificacionToast.classList.add('bg-info', 'text-white');
         }
+        
+        // Mostrar la notificación
+        const toast = new bootstrap.Toast(notificacionToast, { delay: 3000 });
+        toast.show();
+    } else {
+        // Fallback si no se puede mostrar la notificación
+        console.log(`Notificación (${tipo}): ${mensaje}`);
     }
 }
 
@@ -710,8 +311,8 @@ function procesarExcel(buffer) {
         // Renderizar tabla
         renderizarTablaContadores();
         
-        // Actualizar el mapa con los nuevos hidrantes
-        actualizarMarcadoresHidrantes();
+        // Notificar al usuario que los datos se han importado con éxito
+        mostrarNotificacion('Datos importados con éxito', 'success');
         
         // Habilitar botones
         habilitarBotones();
@@ -1028,7 +629,8 @@ function cargarDatosGuardados() {
         
         // Actualizar el mapa si existe
         if (mapaHidrantes) {
-            actualizarMarcadoresHidrantes();
+            // Actualizar la interfaz con los cambios
+            renderizarTablaContadores();
         }
         
         // Habilitar botones
