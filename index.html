@@ -9,6 +9,7 @@
     <!-- Leaflet CSS para OpenStreetMap -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/marker-styles.css">
 </head>
 <body class="bg-dark">
     <div class="container-fluid">
@@ -18,6 +19,23 @@
                     <i class="bi bi-speedometer2 me-2"></i>
                     Sistema de Gestión de Contadores
                 </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="index.html">
+                                <i class="bi bi-speedometer2 me-1"></i> Registro de Lecturas
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="hidrantes.html">
+                                <i class="bi bi-geo-alt-fill me-1"></i> Gestión de Hidrantes
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </nav>
 
@@ -49,7 +67,7 @@
                             </div>
                             <div class="d-flex flex-wrap gap-2 mb-3">
                                 <button id="saveBtn" class="btn btn-success flex-grow-1" disabled>
-                                    <i class="bi bi-save me-2"></i>Guardar Lecturas
+                                    <i class="bi bi-floppy me-2"></i>Guardar Lecturas
                                 </button>
                                 <button id="exportPdfBtn" class="btn btn-danger flex-grow-1" disabled>
                                     <i class="bi bi-file-earmark-pdf me-2"></i>Exportar a PDF
@@ -60,9 +78,9 @@
                             </div>
                             
                             <div class="d-flex flex-wrap gap-2">
-                                <button id="generarHidrantesBtn" class="btn btn-warning w-100">
-                                    <i class="bi bi-geo-alt-fill me-2"></i>Generar 33 Hidrantes de Ejemplo
-                                </button>
+                                <a href="hidrantes.html" class="btn btn-warning w-100">
+                                    <i class="bi bi-geo-alt-fill me-2"></i>Gestionar Hidrantes
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -101,42 +119,14 @@
                 </div>
             </div>
 
-            <!-- Mapa de Hidrantes -->
+            <!-- Descripción de lecturas -->
             <div class="card mb-4">
                 <div class="card-header bg-info text-white">
-                    <h5><i class="bi bi-geo-alt-fill me-2"></i>Mapa de Hidrantes</h5>
+                    <h5><i class="bi bi-info-circle me-2"></i>Información</h5>
                 </div>
                 <div class="card-body">
-                    <div id="mapContainer" style="height: 500px; border-radius: 8px;"></div>
-                    <div class="row mt-3">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="hidranteSelect" class="form-label">Seleccionar Hidrante:</label>
-                                <select id="hidranteSelect" class="form-select"></select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card bg-dark">
-                                <div class="card-body py-2">
-                                    <h6 class="card-subtitle mb-2 text-muted">Coordenadas del Hidrante</h6>
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <small class="text-muted">Latitud:</small>
-                                            <p id="hidranteLatitud" class="mb-0">-</p>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <small class="text-muted">Longitud:</small>
-                                            <p id="hidranteLongitud" class="mb-0">-</p>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <small class="text-muted">Altitud:</small>
-                                            <p id="hidranteAltitud" class="mb-0">-</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <p>Esta sección muestra las lecturas de contadores importadas desde Excel. Para gestionar y posicionar hidrantes en el mapa, vaya a la sección <a href="hidrantes.html" class="btn btn-sm btn-warning"><i class="bi bi-geo-alt-fill"></i> Gestión de Hidrantes</a></p>
+                    <p>Los datos de lecturas y consumos se guardan automáticamente en su navegador cuando realiza cambios. Puede exportar estos datos a PDF o Excel utilizando los botones correspondientes.</p>
                 </div>
             </div>
 
