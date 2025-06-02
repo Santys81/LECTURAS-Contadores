@@ -1,3 +1,6 @@
+// Creamos un objeto global para todas nuestras utilidades y funciones
+window.AppSistemaContadores = window.AppSistemaContadores || {};
+
 // Variables globales
 let contadores = [];
 let historialLecturas = [];
@@ -15,6 +18,27 @@ const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 const downloadTemplateBtn = document.getElementById('downloadTemplate');
 const importProgress = document.getElementById('importProgress');
 const progressBar = importProgress ? importProgress.querySelector('.progress-bar') : null;
+
+// Función para habilitar los botones cuando hay datos cargados - disponible globalmente
+window.AppSistemaContadores.habilitarBotones = function() {
+    try {
+        console.log('Ejecutando habilitarBotones');
+        if (contadores && contadores.length > 0) {
+            if (saveBtn) saveBtn.disabled = false;
+            if (exportPdfBtn) exportPdfBtn.disabled = false;
+            if (exportExcelBtn) exportExcelBtn.disabled = false;
+        } else {
+            if (saveBtn) saveBtn.disabled = true;
+            if (exportPdfBtn) exportPdfBtn.disabled = true;
+            if (exportExcelBtn) exportExcelBtn.disabled = true;
+        }
+    } catch (error) {
+        console.error('Error en habilitarBotones:', error);
+    }
+};
+
+// Alias de acceso directo a la función
+const habilitarBotones = window.AppSistemaContadores.habilitarBotones;
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
@@ -694,18 +718,7 @@ function eliminarRegistroHistorico(index) {
     }
 }
 
-// Función para habilitar los botones cuando hay datos cargados
-function habilitarBotones() {
-    if (contadores && contadores.length > 0) {
-        saveBtn.disabled = false;
-        exportPdfBtn.disabled = false;
-        exportExcelBtn.disabled = false;
-    } else {
-        saveBtn.disabled = true;
-        exportPdfBtn.disabled = true;
-        exportExcelBtn.disabled = true;
-    }
-}
+// Esta función ahora está definida al inicio del script
 
 // Cargar datos guardados en localStorage
 function cargarDatosGuardados() {
