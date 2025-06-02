@@ -105,8 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Intentar cargar el historial guardado
-    cargarHistorial();
+    // Intentar cargar los datos guardados
+    cargarDatosGuardados();
 });
 
 // Funciones para el mapa de hidrantes
