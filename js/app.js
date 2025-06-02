@@ -627,11 +627,8 @@ function cargarDatosGuardados() {
         contadores = JSON.parse(contadoresGuardados);
         renderizarTablaContadores();
         
-        // Actualizar el mapa si existe
-        if (mapaHidrantes) {
-            // Actualizar la interfaz con los cambios
-            renderizarTablaContadores();
-        }
+        // Calcular consumo total
+        calcularTotalConsumo();
         
         // Habilitar botones
         habilitarBotones();
